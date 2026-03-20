@@ -11,6 +11,16 @@ mcp_name="$1"
 url="$2"
 shift 2
 
+script_dir="${0:A:h}"
+project_root="${script_dir:h}"
+env_file="$project_root/.env"
+
+if [[ -f "$env_file" ]]; then
+  set -a
+  source "$env_file"
+  set +a
+fi
+
 case "$mcp_name" in
   dsv-mcp)
     header_name="X-API-KEY"
@@ -27,10 +37,16 @@ case "$mcp_name" in
 esac
 
 header_value="${(P)env_var_name:-}"
+transport="${MCP_REMOTE_TRANSPORT:-http-first}"
 
 if [[ -z "$header_value" ]]; then
   print -u2 "missing required environment variable: $env_var_name"
   exit 1
 fi
 
-exec npx -y mcp-remote "$url" --transport http-only --header "$header_name:$header_value" "$@"
+if [[ -z "$transport" ]]; then
+  print -u2 "MCP_REMOTE_TRANSPORT must not be empty"
+  exit 1
+fi
+
+exec npx -y mcp-remote "$url" --transport "$transport" --header "$header_name:$header_value" "$@"
