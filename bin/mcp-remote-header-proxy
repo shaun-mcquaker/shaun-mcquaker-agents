@@ -39,6 +39,10 @@ esac
 header_value="${(P)env_var_name:-}"
 transport="${MCP_REMOTE_TRANSPORT:-http-first}"
 
+if [[ "$mcp_name" == "shaun-mcp" && "$header_value" != [Bb]asic\ * && "$header_value" != [Bb]earer\ * ]]; then
+  header_value="Basic $header_value"
+fi
+
 if [[ -z "$header_value" ]]; then
   print -u2 "missing required environment variable: $env_var_name"
   exit 1
