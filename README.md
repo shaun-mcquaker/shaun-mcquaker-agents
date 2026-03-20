@@ -1,82 +1,112 @@
-# Shaun McQuaker Stack
+# Shaun McQuaker Agents
 
-This repo is the source of truth for Shaun McQuaker's local development environment.
+This repo is Shaun McQuaker's personal local tooling and AI workflow config.
 
-It follows Michael Burjack's stack/layout/install pattern, swaps in mjn's captain-led OpenCode architecture, and layers in selected jrc skills and MCP integrations.
+It manages the dotfiles and helper scripts that power:
 
-## What Is In Here
+- OpenCode configuration, agents, commands, skills, and plugins
+- Neovim configuration
+- Zellij layouts and plugin source
+- Ghostty configuration
+- shell and prompt setup
+- local helper scripts for editor, worktree, review, and MCP workflows
 
-| Directory | Purpose |
+`qstack` is the installer and symlink manager for this repo.
+
+## What This Repo Actually Does
+
+This is not an application repo.
+
+It is a workstation/config repo that keeps Shaun's local development environment in version control and wires those files into the expected locations under `~/.config`, `~/.local/bin`, and `~/.zprezto/runcoms`.
+
+The most important subtree is `opencode/`, which contains:
+
+- agent definitions in `opencode/agents/`
+- slash-style command docs in `opencode/commands/`
+- reusable skills in `opencode/skills/`
+- OpenCode runtime config in `opencode/opencode.jsonc`
+- local plugin code in `opencode/plugins/`
+
+## Repository Layout
+
+| Path | Purpose |
 |---|---|
-| `shell/` | Zsh config |
+| `qstack` | Installs and manages symlinks for the stack |
+| `bin/` | Helper scripts like `nv`, `nv-wait`, `work`, `worktree`, `review`, and `mcp-remote-header-proxy` |
+| `shell/` | Zsh and prompt config |
 | `nvim/` | Neovim config |
 | `ghostty/` | Ghostty config |
-| `zellij/` | Zellij config, layouts, plugin assets |
-| `bin/` | Local helper scripts like `nv`, `nv-wait`, `work`, `worktree`, and `review` |
-| `opencode/` | OpenCode config, agents, commands, skills, plugins |
-| `bstack` | Symlink-based installer and config manager |
+| `zellij/` | Zellij config, layouts, and plugin source/assets |
+| `opencode/` | OpenCode config, agents, commands, skills, and plugins |
 
-## OpenCode Shape
+## qstack
 
-The `opencode/` subtree is intentionally synthesized:
+`qstack` is the entry point for installing this repo's managed files onto a machine.
 
-- layout/install pattern from `michaelburjack-stack`
-- primary philosophy and agent team from `mjn-opencode-config`
-- selected review/worktree/data skills and MCP setup from `jrc-opencode-config`
-
-## Quick Start
-
-### 1. Clone the repo
+Typical commands:
 
 ```bash
-git clone <repo-url> <local-path>
-cd <local-path>
+./qstack install
+./qstack uninstall
+./qstack adopt <path>
+./qstack abandon <path>
+./qstack manifest
 ```
 
-### 2. Run the installer
+What it manages:
 
-```bash
-./bstack install
-```
+- `~/.config/opencode/`
+- `~/.config/nvim/`
+- `~/.config/zellij/`
+- `~/.config/ghostty/`
+- `~/.local/bin/`
+- `~/.zprezto/runcoms/`
+- `~/.p10k.zsh`
 
-`bstack` walks the managed files, backs up anything already present, and creates symlinks into the expected locations like `~/.config/opencode`, `~/.config/zellij`, `~/.config/nvim`, and `~/.local/bin`.
+It stores its manifest in `~/.config/qstack/manifest` and will copy the old `~/.config/bstack/manifest` forward if that legacy file exists.
 
-After install, these workspace launchers should be available on your `PATH`:
+## OpenCode Setup
 
-```bash
-work [path-or-repo]
-worktree <repo> <branch>
-review <repo> <pr-number>
-```
+The OpenCode config in this repo is opinionated around a specialist-agent workflow.
 
-### 3. Install OpenCode plugin dependencies
+Current highlights:
 
-```bash
-cd opencode
-bun install      # preferred
-# or
-npm install
-```
+- repo-local agents live in `opencode/agents/`
+- reusable workflow skills live in `opencode/skills/`
+- custom commands live in `opencode/commands/`
+- the `opencode-beads` plugin is enabled
+- local plugin code currently includes `opencode/plugins/zellij-tab-status.ts`
+- MCP servers are configured in `opencode/opencode.jsonc`
 
-### 4. Restart the relevant tools
+The current MCP config includes:
 
-- restart OpenCode
-- restart Zellij or open a fresh shell session
-- restart Neovim and Ghostty if you installed those configs
+- `alphaxiv-mcp`
+- `anydb-mcp`
+- `dsv-mcp`
+- `shaun-mcp`
 
-## Local Machine Prerequisites
+The remote authenticated MCPs are launched through `bin/mcp-remote-header-proxy`.
+
+## Neovim, Zellij, and Shell
+
+- `nvim/` contains the full Neovim config, including plugin setup and keymaps
+- `zellij/` contains the main config, layouts, and the tab-title plugin source/assets
+- `shell/` contains zprezto runcoms and Powerlevel10k config
+- `bin/nv` and `bin/nv-wait` are designed to work with the local Neovim/Zellij workflow
+
+## Machine Prerequisites
 
 Recommended baseline:
 
-- Ghostty
-- Zellij
-- Neovim
-- Bun (preferred) or npm
-- Node.js / `npx`
-- `uv` / `uvx`
+- `git`
+- `zsh`
+- `zprezto`
 - `gh`
-- zprezto
-- Powerlevel10k
+- `node` / `npx`
+- `bun` or `npm`
+- `nvim`
+- `zellij`
+- `ghostty`
 
 For the bundled Zellij plugin source, rebuilding also needs:
 
@@ -84,40 +114,32 @@ For the bundled Zellij plugin source, rebuilding also needs:
 - `wasm32-wasip1` target
 - `wasm-tools`
 
-## OpenCode MCP Setup
-
-Enabled by default in `opencode/opencode.jsonc`:
-
-- `data-portal-mcp`
-- `shopify-dev-mcp`
-- `slack-mcp`
-- `vault-mcp`
-
-Available but disabled by default:
-
-- `sage-mcp`
-- `chrome-devtools`
-
-Environment variables you should set in your shell profile:
+## First-Time Setup
 
 ```bash
-export VAULT_MCP_API_TOKEN="your-vault-token"
+git clone <repo-url> <local-path>
+cd <local-path>
+./qstack install
 ```
 
-If you enable `sage-mcp`, also make sure your local Sage/proxy auth flow is already working.
-
-## bstack Reference
+Then install OpenCode plugin dependencies:
 
 ```bash
-bstack install
-bstack uninstall
-bstack adopt <path>
-bstack abandon <path>
-bstack manifest
+cd opencode
+bun install
+# or: npm install
 ```
+
+After that, restart the tools that consume the config:
+
+- OpenCode
+- Neovim
+- Zellij
+- Ghostty
+- any shell sessions using the managed zsh config
 
 ## Notes
 
-- OpenCode config is expected at `~/.config/opencode/` via symlink.
-- Worktrees are expected under `~/src/worktrees/<repo>/<branch>/`.
-- `nv` and `nv-wait` are designed to work with the Zellij/Neovim socket pattern used in this stack.
+- This repo is intended to be the source of truth for the managed local config it installs.
+- `opencode/opencode.jsonc` is the canonical place for OpenCode runtime defaults and MCP configuration.
+- `qstack` dynamically discovers many OpenCode commands, agents, and skills instead of hardcoding every file.

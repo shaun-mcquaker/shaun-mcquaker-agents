@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# bstack — manage dotfile symlinks for shaun-mcquaker
+# qstack — manage dotfile symlinks for shaun-mcquaker
 #
 # Usage:
-#   bstack install      Interactive first-run / update: walk the file registry,
+#   qstack install      Interactive first-run / update: walk the file registry,
 #                        prompt per file, create symlinks, write manifest.
-#   bstack uninstall     Reverse all symlinks from manifest, restore backups.
-#   bstack adopt <path>  Move a file/directory into the repo, replace with a
+#   qstack uninstall     Reverse all symlinks from manifest, restore backups.
+#   qstack adopt <path>  Move a file/directory into the repo, replace with a
 #                        symlink, append to manifest, and git-add.
-#   bstack abandon <path> Move a file back out of the repo, remove symlink and
+#   qstack abandon <path> Move a file back out of the repo, remove symlink and
 #                        manifest entry, git-rm from staging.
 #
 # The repo root is auto-detected relative to this script's location.
@@ -17,7 +17,8 @@ set -euo pipefail
 # --- Constants ---------------------------------------------------------------
 
 REPO_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
-MANIFEST_DIR="$HOME/.config/bstack"
+MANIFEST_DIR="$HOME/.config/qstack"
+LEGACY_MANIFEST_DIR="$HOME/.config/bstack"
 MANIFEST="$MANIFEST_DIR/manifest"
 
 # --- Prefix map: filesystem prefix → repo subtree ---------------------------
@@ -109,6 +110,10 @@ warn()  { printf "%s⚠%s %s\n" "$tput_yellow" "$tput_reset" "$*"; }
 err()   { printf "%s✗%s %s\n" "$tput_red"    "$tput_reset" "$*" >&2; }
 
 ensure_manifest_dir() {
+  if [ ! -e "$MANIFEST" ] && [ -e "$LEGACY_MANIFEST_DIR/manifest" ]; then
+    mkdir -p "$MANIFEST_DIR"
+    cp "$LEGACY_MANIFEST_DIR/manifest" "$MANIFEST"
+  fi
   mkdir -p "$MANIFEST_DIR"
   touch "$MANIFEST"
 }
@@ -378,11 +383,17 @@ cmd_uninstall() {
     count=$((count + 1))
   done < <(grep ' → ' "$MANIFEST")
 
-  # Also undo bstack itself
-  local bstack_target="$HOME/.local/bin/bstack"
-  if [ -L "$bstack_target" ] && [ "$(readlink -f "$bstack_target")" = "$REPO_DIR/bstack" ]; then
-    rm "$bstack_target"
-    ok "Removed bstack from PATH"
+  # Also undo qstack itself
+  local qstack_target="$HOME/.local/bin/qstack"
+  if [ -L "$qstack_target" ] && [ "$(readlink -f "$qstack_target")" = "$REPO_DIR/qstack" ]; then
+    rm "$qstack_target"
+    ok "Removed qstack from PATH"
+  fi
+
+  local legacy_bstack_target="$HOME/.local/bin/bstack"
+  if [ -L "$legacy_bstack_target" ] && [ "$(readlink -f "$legacy_bstack_target")" = "$REPO_DIR/qstack" ]; then
+    rm "$legacy_bstack_target"
+    ok "Removed legacy bstack alias from PATH"
   fi
 
   rm -f "$MANIFEST"
@@ -391,7 +402,7 @@ cmd_uninstall() {
 
 cmd_adopt() {
   if [ -z "${1:-}" ]; then
-    err "Usage: bstack adopt <path>"
+    err "Usage: qstack adopt <path>"
     exit 1
   fi
 
@@ -415,7 +426,7 @@ cmd_adopt() {
     exit 1
   fi
 
-  # Check if the file lives inside a directory already adopted by bstack.
+  # Check if the file lives inside a directory already adopted by qstack.
   # This happens when e.g. someone tries to adopt skills/foo/SKILL.md but
   # skills/foo/ is already a symlink into the repo.  The real path will
   # resolve into REPO_DIR, which is a dead giveaway.
@@ -438,11 +449,11 @@ cmd_adopt() {
       check_dir="$(dirname "$check_dir")"
     done
     if [ -n "$adopted_link" ]; then
-      ok "Already managed by bstack — parent directory is adopted:"
+      ok "Already managed by qstack — parent directory is adopted:"
       info "  $adopted_link → $(readlink "$adopted_link")"
       info "Edits to files inside this directory are automatically tracked."
     else
-      ok "Already lives inside the bstack repo. No action needed."
+      ok "Already lives inside the qstack repo. No action needed."
     fi
     exit 0
   fi
@@ -471,7 +482,7 @@ cmd_adopt() {
     local current_target
     current_target="$(readlink -f "$source_path")"
     if [[ "$current_target" == "$REPO_DIR"* ]]; then
-      err "Already managed by bstack (symlink points into repo)"
+      err "Already managed by qstack (symlink points into repo)"
       exit 1
     fi
   fi
@@ -524,7 +535,7 @@ cmd_adopt() {
 
 cmd_abandon() {
   if [ -z "${1:-}" ]; then
-    err "Usage: bstack abandon <path>"
+    err "Usage: qstack abandon <path>"
     err "  <path> can be the filesystem path or the repo-relative path."
     exit 1
   fi
@@ -612,21 +623,21 @@ cmd_abandon() {
 # --- Self-bootstrap ----------------------------------------------------------
 
 ensure_on_path() {
-  local bstack_target="$HOME/.local/bin/bstack"
-  if [ -L "$bstack_target" ] && [ "$(readlink -f "$bstack_target")" = "$REPO_DIR/bstack" ]; then
+  local qstack_target="$HOME/.local/bin/qstack"
+  if [ -L "$qstack_target" ] && [ "$(readlink -f "$qstack_target")" = "$REPO_DIR/qstack" ]; then
     return 0
   fi
-  printf "\n%s%sbstack%s is not on your PATH yet.\n" "$tput_bold" "$tput_cyan" "$tput_reset"
-  printf "  Symlink to %s? [Y/n] " "$bstack_target"
+  printf "\n%s%sqstack%s is not on your PATH yet.\n" "$tput_bold" "$tput_cyan" "$tput_reset"
+  printf "  Symlink to %s? [Y/n] " "$qstack_target"
   read -r answer
   case "${answer:-Y}" in
     [Yy]*)
-      mkdir -p "$(dirname "$bstack_target")"
-      if [ -e "$bstack_target" ]; then
-        mv "$bstack_target" "$(backup_path "$bstack_target")"
+      mkdir -p "$(dirname "$qstack_target")"
+      if [ -e "$qstack_target" ]; then
+        mv "$qstack_target" "$(backup_path "$qstack_target")"
       fi
-      ln -s "$REPO_DIR/bstack" "$bstack_target"
-      ok "bstack → $bstack_target"
+      ln -s "$REPO_DIR/qstack" "$qstack_target"
+      ok "qstack → $qstack_target"
       ;;
     *) ;;
   esac
@@ -644,14 +655,14 @@ case "${1:-}" in
   manifest)  cat "$MANIFEST" 2>/dev/null || err "No manifest found." ;;
   -h|--help|help|"")
     cat <<EOF
-${tput_bold}bstack${tput_reset} — manage dotfile symlinks for shaun-mcquaker
+${tput_bold}qstack${tput_reset} — manage dotfile symlinks for shaun-mcquaker
 
 ${tput_bold}Usage:${tput_reset}
-  bstack install        Interactive setup: create symlinks from repo → filesystem
-  bstack uninstall      Reverse all symlinks, restore backups
-  bstack adopt <path>   Move a file/directory into the repo and replace with symlink
-  bstack abandon <path> Move a file back out of the repo and remove the symlink
-  bstack manifest       Dump the manifest (all tracked repo → filesystem mappings)
+  qstack install        Interactive setup: create symlinks from repo → filesystem
+  qstack uninstall      Reverse all symlinks, restore backups
+  qstack adopt <path>   Move a file/directory into the repo and replace with symlink
+  qstack abandon <path> Move a file back out of the repo and remove the symlink
+  qstack manifest       Dump the manifest (all tracked repo → filesystem mappings)
 
 ${tput_bold}Manifest:${tput_reset}  $MANIFEST
 ${tput_bold}Repo:${tput_reset}      $REPO_DIR
@@ -659,7 +670,7 @@ EOF
     ;;
   *)
     err "Unknown command: $1"
-    err "Run 'bstack help' for usage."
+    err "Run 'qstack help' for usage."
     exit 1
     ;;
 esac
