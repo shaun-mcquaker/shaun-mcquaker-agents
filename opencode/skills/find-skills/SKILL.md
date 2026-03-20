@@ -16,8 +16,6 @@ When asked how to do something, first check the available skills in `~/.config/o
 - UI polish, page design, visual direction -> `frontend-design`
 - deep exploration of a project idea -> `deep-research`
 - exporting or sharing research artifacts -> `research-export`
-- comparing teammate configs -> `teammate-config-audit`
-- Gmail filter management, inbox noise automation -> `gmail-filters`
 
 ## Response Pattern
 

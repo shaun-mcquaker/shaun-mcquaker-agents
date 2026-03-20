@@ -215,11 +215,12 @@ worktree() {
   local main_repo_dir
   main_repo_dir="$(dev cd -n "$repo" 2>/dev/null)"
   if [[ -z "$main_repo_dir" || ! -d "$main_repo_dir" ]]; then
-    # Try ~/src/github.com/Shopify/<repo>
-    if [[ -d "$HOME/src/github.com/Shopify/$repo" ]]; then
-      main_repo_dir="$HOME/src/github.com/Shopify/$repo"
-    elif [[ -d "$HOME/src/github.com/shopify-playground/$repo" ]]; then
-      main_repo_dir="$HOME/src/github.com/shopify-playground/$repo"
+    local repo_candidates=(
+      "$HOME/src/github.com"/*/"$repo"(N)
+      "$HOME/src"/*/"$repo"(N)
+    )
+    if (( ${#repo_candidates[@]} > 0 )); then
+      main_repo_dir="$repo_candidates[1]"
     else
       echo "worktree: cannot find repo '$repo'" >&2
       return 1
@@ -354,10 +355,12 @@ review() {
   local main_repo_dir
   main_repo_dir="$(dev cd -n "$repo" 2>/dev/null)"
   if [[ -z "$main_repo_dir" || ! -d "$main_repo_dir" ]]; then
-    if [[ -d "$HOME/src/github.com/Shopify/$repo" ]]; then
-      main_repo_dir="$HOME/src/github.com/Shopify/$repo"
-    elif [[ -d "$HOME/src/github.com/shopify-playground/$repo" ]]; then
-      main_repo_dir="$HOME/src/github.com/shopify-playground/$repo"
+    local repo_candidates=(
+      "$HOME/src/github.com"/*/"$repo"(N)
+      "$HOME/src"/*/"$repo"(N)
+    )
+    if (( ${#repo_candidates[@]} > 0 )); then
+      main_repo_dir="$repo_candidates[1]"
     else
       echo "review: cannot find repo '$repo'" >&2
       return 1

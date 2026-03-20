@@ -2,7 +2,7 @@
 
 This repo is the source of truth for Shaun McQuaker's local development environment.
 
-It follows Michael Burjack's stack/layout/install pattern, swaps in mjn's captain-led OpenCode architecture, and layers in selected jrc skills and MCP integrations for Growth Labs work.
+It follows Michael Burjack's stack/layout/install pattern, swaps in mjn's captain-led OpenCode architecture, and layers in selected jrc skills and MCP integrations.
 
 ## What Is In Here
 
@@ -14,7 +14,6 @@ It follows Michael Burjack's stack/layout/install pattern, swaps in mjn's captai
 | `zellij/` | Zellij config, layouts, plugin assets |
 | `bin/` | Local helper scripts like `nv`, `nv-wait`, `work`, `worktree`, and `review` |
 | `opencode/` | OpenCode config, agents, commands, skills, plugins |
-| `gmailctl/` | Gmail filter config |
 | `bstack` | Symlink-based installer and config manager |
 
 ## OpenCode Shape
@@ -30,8 +29,8 @@ The `opencode/` subtree is intentionally synthesized:
 ### 1. Clone the repo
 
 ```bash
-git clone git@github.com:shopify-playground/shaun-mcquaker.git ~/src/github.com/shopify-playground/shaun-mcquaker
-cd ~/src/github.com/shopify-playground/shaun-mcquaker
+git clone <repo-url> <local-path>
+cd <local-path>
 ```
 
 ### 2. Run the installer
@@ -78,7 +77,6 @@ Recommended baseline:
 - `gh`
 - zprezto
 - Powerlevel10k
-- optional: `gmailctl`
 
 For the bundled Zellij plugin source, rebuilding also needs:
 

@@ -70,7 +70,7 @@ For packages with minor bumps (especially multi-minor jumps):
 
 Run project-specific validation commands. **Stop and fix before proceeding.**
 
-**Shopify projects:**
+**Project-specific validation example:**
 
 ```bash
 /opt/dev/bin/dev check      # lint + typecheck

@@ -453,10 +453,6 @@ class ContentSanitizer:
         (re.compile(r"Bearer\s+[A-Za-z0-9._\-/+=]{20,}"), "Bearer [REDACTED:token]"),
         # AWS keys
         (re.compile(r"AKIA[A-Z0-9]{16}"), "[REDACTED:aws-key]"),
-        # Shopify API keys
-        (re.compile(r"shpat_[A-Fa-f0-9]{32,}"), "[REDACTED:shopify-token]"),
-        (re.compile(r"shpss_[A-Fa-f0-9]{32,}"), "[REDACTED:shopify-token]"),
-        (re.compile(r"shppa_[A-Fa-f0-9]{32,}"), "[REDACTED:shopify-token]"),
         # Password fields in JSON/YAML-like content
         (re.compile(r'(["\']?password["\']?\s*[:=]\s*)["\'][^"\']{1,}["\']', re.IGNORECASE),
          r"\1[REDACTED:password]"),

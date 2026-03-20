@@ -6,21 +6,11 @@ This repo follows Michael Burjack's stack/layout/install pattern, uses mjn's cap
 
 ## Who You're Working With
 
-Shaun McQuaker - Senior Lead, Growth at Shopify.
+Shaun McQuaker.
 
 Optimise for leverage, clarity, and forward motion. Prefer direct recommendations, explain trade-offs briefly, and surface the next concrete action when it helps.
 
-## Team - Growth Labs
-
-| Name | Role | GitHub |
-|------|------|--------|
-| Shaun McQuaker | Senior Lead, Growth | `shaunmcquakershop` |
-| Michael Burjack | Senior Staff Developer | `MichaelBurjack` |
-| Breanna Pilon | Growth Lead | `brepilon` |
-| Jonathan Clarkin | Staff Engineer, Growth | `jclarkin` |
-| Mark Northcott | Staff Engineer, Growth | `mjn` |
-
-Use first names when the referent is obvious. When drafting messages for teammates, keep them concise, plainspoken, and useful.
+When drafting messages for collaborators, keep them concise, plainspoken, and useful.
 
 ## Communication
 
@@ -94,8 +84,6 @@ Critique loop: implementation -> `critic` review -> fix -> re-review -> commit o
 | **frontend-design** | page polish, visual design, UI refinement |
 | **deep-research** | deep project exploration, idea research |
 | **research-export** | export/share research artifacts |
-| **teammate-config-audit** | compare teammate OpenCode setups |
-| **gmail-filters** | manage Gmail filters via gmailctl |
 | **find-skills** | identify which available skill to load |
 
 ## Stack Notes
@@ -115,5 +103,4 @@ Critique loop: implementation -> `critic` review -> fix -> re-review -> commit o
 - `ghostty/` - terminal config
 - `zellij/` - multiplexer config, layouts, plugins
 - `opencode/` - OpenCode config, agents, commands, skills, plugins
-- `gmailctl/` - Gmail filter config
 - `bstack` - symlink-based installer and config manager
