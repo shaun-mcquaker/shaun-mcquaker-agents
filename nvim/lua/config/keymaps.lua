@@ -3,6 +3,7 @@ vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
 local map = vim.keymap.set
+local buffers = require("config.buffers")
 
 -- Clear search highlight
 map("n", "<Esc>", "<cmd>nohlsearch<cr>", { desc = "Clear search highlight" })
@@ -19,19 +20,7 @@ map("n", "<S-l>", "<cmd>bnext<cr>", { desc = "Next buffer" })
 
 -- Buffers
 map("n", "<leader>x", function()
-  if vim.bo.buftype ~= "" then
-    return
-  end
-  local buf = vim.api.nvim_get_current_buf()
-  local bufs = vim.tbl_filter(function(b)
-    return vim.bo[b].buflisted and b ~= buf
-  end, vim.api.nvim_list_bufs())
-  if #bufs > 0 then
-    vim.cmd("bp")
-  else
-    vim.cmd("enew")
-  end
-  vim.api.nvim_buf_delete(buf, { force = false })
+  buffers.close_buffer()
 end, { desc = "Close buffer" })
 
 map("n", "<leader>w", function()

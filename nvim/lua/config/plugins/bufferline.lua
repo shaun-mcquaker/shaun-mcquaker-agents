@@ -3,6 +3,8 @@ return {
   dependencies = { "nvim-tree/nvim-web-devicons" },
   lazy = false,
   config = function()
+    local buffers = require("config.buffers")
+
     -- Track double-click state for closing buffers
     local last_click_time = 0
     local last_click_buf = nil
@@ -17,12 +19,13 @@ return {
         show_close_icon = false,
         show_buffer_close_icons = false,
         separator_style = "thin",
-        close_command = "bdelete! %d",
+        close_command = function(bufnr)
+          buffers.close_buffer(bufnr)
+        end,
         left_mouse_command = function(bufnr)
           local now = vim.loop.now()
           if last_click_buf == bufnr and (now - last_click_time) < double_click_threshold then
-            -- Double-click: close the buffer
-            vim.cmd("bdelete! " .. bufnr)
+            buffers.close_buffer(bufnr)
             last_click_time = 0
             last_click_buf = nil
           else
