@@ -1,0 +1,36 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+  print -u2 "usage: mcp-remote-header-proxy <mcp-name> <url> [extra args...]"
+  exit 1
+fi
+
+mcp_name="$1"
+url="$2"
+shift 2
+
+case "$mcp_name" in
+  dsv-mcp)
+    header_name="X-API-KEY"
+    env_var_name="DSV_MCP_X_API_KEY"
+    ;;
+  shaun-mcp)
+    header_name="Authorization"
+    env_var_name="SHAUN_MCP_AUTHORIZATION"
+    ;;
+  *)
+    print -u2 "unsupported MCP name: $mcp_name"
+    exit 1
+    ;;
+esac
+
+header_value="${(P)env_var_name:-}"
+
+if [[ -z "$header_value" ]]; then
+  print -u2 "missing required environment variable: $env_var_name"
+  exit 1
+fi
+
+exec npx -y mcp-remote "$url" --transport http-only --header "$header_name:$header_value" "$@"

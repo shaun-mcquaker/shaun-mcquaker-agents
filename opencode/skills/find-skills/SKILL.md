@@ -13,13 +13,10 @@ When asked how to do something, first check the available skills in `~/.config/o
 - starting isolated feature work -> `using-git-worktrees`
 - creating or shipping a PR -> `pr-workflow`
 - reviewing a PR or review methodology -> `pr-review`
-- BigQuery, warehouse schemas, typed data access -> `data-mapping`
 - UI polish, page design, visual direction -> `frontend-design`
 - deep exploration of a project idea -> `deep-research`
 - exporting or sharing research artifacts -> `research-export`
-- Slack workflows and summaries -> `slack-integration`
 - comparing teammate configs -> `teammate-config-audit`
-- drafting Vault posts, team updates, announcements -> `vault-post`
 - Gmail filter management, inbox noise automation -> `gmail-filters`
 
 ## Response Pattern

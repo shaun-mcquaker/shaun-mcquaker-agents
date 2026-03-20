@@ -7,7 +7,7 @@ description: Manage Gmail filter rules declaratively via gmailctl. Review curren
 
 Manage Shaun's Gmail filters using [`gmailctl`](https://github.com/mbrt/gmailctl) — a declarative, Jsonnet-based tool that syncs filter rules to Gmail via the API. This skill handles the full lifecycle: reviewing existing rules, proposing new ones, diffing, applying, and doing one-time inbox cleanup after a new filter goes live.
 
-The `checkin` skill may invoke this skill when it detects patterns in inbox noise that could be automated.
+Use this skill when inbox noise should be automated with Gmail filters.
 
 ---
 

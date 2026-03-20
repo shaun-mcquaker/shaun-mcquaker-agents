@@ -91,13 +91,10 @@ Critique loop: implementation -> `critic` review -> fix -> re-review -> commit o
 | **pr-workflow** | create PR, ship this, open PR |
 | **pr-review** | structured PR review methodology |
 | **using-git-worktrees** | start feature work, isolate implementation |
-| **data-mapping** | BigQuery, warehouse, typed data access |
 | **frontend-design** | page polish, visual design, UI refinement |
 | **deep-research** | deep project exploration, idea research |
 | **research-export** | export/share research artifacts |
-| **slack-integration** | Slack summaries and messaging workflows |
 | **teammate-config-audit** | compare teammate OpenCode setups |
-| **vault-post** | draft Vault posts |
 | **gmail-filters** | manage Gmail filters via gmailctl |
 | **find-skills** | identify which available skill to load |
 
@@ -108,7 +105,7 @@ Critique loop: implementation -> `critic` review -> fix -> re-review -> commit o
 - **Config location:** `~/.config/opencode/` is expected to symlink into this repo via `bstack`
 - **Layout:** Ghostty + Zellij + Neovim + OpenCode, with `nv` / `nv-wait` helpers for editor handoff
 - **Worktrees:** create under `~/src/worktrees/<repo>/<branch>/`
-- **MCP baseline:** `data-portal-mcp`, `shopify-dev-mcp`, `slack-mcp`, `vault-mcp`; `sage-mcp` and `chrome-devtools` are present but disabled by default
+- **MCP baseline:** repo-specific; configure only the MCP servers needed for the current environment
 
 ## Repository Pattern
 

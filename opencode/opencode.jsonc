@@ -1,7 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "plugin": [
-    "@shopify-internal/opencode-proxy-plugin",
     "opencode-beads@0.4.0"
   ],
   "model": "openai/gpt-5.4",
@@ -21,39 +20,31 @@
     }
   },
   "mcp": {
-    "data-portal": {
-      "type": "local",
-      "command": ["/opt/homebrew/bin/uvx", "data-portal-mcp"],
+    "alphaxiv-mcp": {
+      "type": "remote",
+      "url": "https://api.alphaxiv.org/mcp/v1"
     },
-    "shopify-dev": {
+    "anydb-mcp": {
       "type": "local",
-      "command": ["npx", "-y", "@shopify/dev-mcp@latest"],
+      "command": ["npx", "-y", "anydb-mcp"]
     },
-    "gworkspace": {
+    "dsv-mcp": {
       "type": "local",
       "command": [
-        "/opt/homebrew/bin/uv",
-        "run",
-        "--directory",
-        "/Users/shaunmcquaker/src/github.com/Shopify/gworkspace-mcp",
-        "gworkspace-mcp"
+        "/Users/shaunmcquaker/code/shaun-mcquaker-agents/bin/mcp-remote-header-proxy",
+        "dsv-mcp",
+        "https://mcp.dailysearchvolume.com/mcp"
       ],
+      "timeout": 60000
     },
-    "slack": {
+    "shaun-mcp": {
       "type": "local",
       "command": [
-        "npx",
-        "-y",
-        "@shopify-internal/slack-mcp@latest"
-      ]
-    },
-    "vault": {
-      "type": "remote",
-      "url": "https://vault.shopify.io/mcp"
-    },
-    "sage": {
-      "type": "remote",
-      "url": "https://proxy-shopify-ai.local.shop.dev/mcp/sage",
+        "/Users/shaunmcquaker/code/shaun-mcquaker-agents/bin/mcp-remote-header-proxy",
+        "shaun-mcp",
+        "https://mcp.portfolioai.com/mcp"
+      ],
+      "timeout": 60000
     }
   }
 }
