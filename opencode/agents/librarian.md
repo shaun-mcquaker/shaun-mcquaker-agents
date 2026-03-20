@@ -1,7 +1,7 @@
 ---
 description: Research specialist for documentation, GitHub code search, multi-repo analysis, and finding implementation examples. Returns evidence-based answers with sources.
 mode: subagent
-model: anthropic/claude-sonnet-4-6
+model: openai/gpt-5.4
 temperature: 0.3
 tools:
   write: false
@@ -173,7 +173,7 @@ Output format:
 - Official documentation
 - Well-maintained repos (recent commits, many stars)
 - Known experts in the field
-- Shopify engineering blogs (for Shopify context)
+- Engineering blogs from teams with strong public writeups
 
 **Medium credibility:**
 - Popular blog posts
@@ -196,7 +196,7 @@ Output format:
 
 You'll typically be invoked like:
 ```
-@librarian How does Shopify handle rate limiting? Find examples in their open source code.
+@librarian How does GitHub handle rate limiting? Find examples in their open source code.
 
 @librarian Research best practices for GraphQL pagination. What do the official docs say?
 

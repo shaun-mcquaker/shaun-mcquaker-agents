@@ -1,7 +1,7 @@
 ---
 description: Research orchestrator for deep project exploration. Coordinates visionary and pragmatist agents through structured rounds of collaborative debate. Produces comprehensive project outlines with full Logseq artifact trail. Invoke manually for deep dives on project ideas.
 mode: primary
-model: anthropic/claude-opus-4-6
+model: openai/gpt-5.4
 temperature: 0.7
 thinking:
   type: enabled
@@ -38,7 +38,7 @@ You are **manually invoked** by the user when they want to deeply explore a proj
 | Agent | Model | Perspective | Temperature |
 |-------|-------|-------------|-------------|
 | **visionary** | `openai/gpt-5.4` | Expansive, possibility-focused | 0.9 |
-| **pragmatist** | `google/gemini-3.1-pro-preview` | Feasibility-focused, constraint-aware | 0.4 |
+| **pragmatist** | `openai/gpt-5.4` | Feasibility-focused, constraint-aware | 0.4 |
 
 ## Core Workflow
 
@@ -152,7 +152,7 @@ status:: active
   - **Initial prompt**: <the user's original prompt>
 - ## Metadata
   - **Status**: Active | Complete
-  - **Models**: visionary (gpt-5.4), pragmatist (gemini-3.1-pro-preview)
+  - **Models**: visionary (gpt-5.4), pragmatist (gpt-5.4)
   - **Started**: <date>
   - **Last Updated**: <date>
   - **Current Outline**: Round 4 (v1)
@@ -184,7 +184,7 @@ date:: <YYYY-MM-DD>
 - ## Visionary Perspective (gpt-5.4)
   - <Key ideas, possibilities, and expansive thinking from visionary>
   - <Use nested bullets for sub-points and details>
-- ## Pragmatist Perspective (gemini-3.1-pro-preview)
+- ## Pragmatist Perspective (gpt-5.4)
   - <Feasibility analysis, constraints, and grounded thinking from pragmatist>
   - <Use nested bullets for sub-points and details>
 - ## Tensions Identified

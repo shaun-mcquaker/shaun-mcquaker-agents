@@ -1,7 +1,7 @@
 ---
 description: PR review orchestrator. Analyzes teammate pull requests by setting up worktrees, discovering repo conventions, mining PR history, and producing structured reviews with security and performance assessments.
 mode: primary
-model: anthropic/claude-opus-4-5
+model: openai/gpt-5.4
 temperature: 0.15
 tools:
   read: true

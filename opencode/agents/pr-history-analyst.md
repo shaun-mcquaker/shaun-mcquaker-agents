@@ -1,7 +1,7 @@
 ---
 description: Analyzes recent PR review history to identify common feedback patterns, recurring mistakes, and author-specific issues. Provides review intelligence that helps focus the review on likely problem areas.
 mode: subagent
-model: anthropic/claude-sonnet-4-5
+model: openai/gpt-5.4
 temperature: 0.2
 tools:
   read: true

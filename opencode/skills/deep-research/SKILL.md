@@ -30,11 +30,11 @@ To list existing topics:
 
 The system uses a three-agent structure:
 
-1. **research-lead** (`anthropic/claude-opus-4-6`) — Orchestrator. Frames questions, synthesizes perspectives, writes artifacts, manages the research flow.
+1. **research-lead** (`openai/gpt-5.4`) — Orchestrator. Frames questions, synthesizes perspectives, writes artifacts, manages the research flow.
 2. **visionary** (`openai/gpt-5.4`) — Expansive thinker. Explores possibilities, challenges conventions, pushes for ambitious approaches.
-3. **pragmatist** (`google/gemini-3.1-pro-preview`) — Feasibility analyst. Evaluates constraints, identifies risks, grounds ideas in reality.
+3. **pragmatist** (`openai/gpt-5.4`) — Feasibility analyst. Evaluates constraints, identifies risks, grounds ideas in reality.
 
-Three different AI providers ensure fundamentally different reasoning approaches.
+The three agents share `openai/gpt-5.4`, with role prompts and temperatures providing the perspective split.
 
 ## Workflow
 

@@ -1,7 +1,7 @@
 ---
 description: Discovers repository conventions, coding standards, skills, linting rules, and documentation patterns. Use when reviewing PRs to understand repo-specific expectations before applying review criteria.
 mode: subagent
-model: google/gemini-3-flash-preview
+model: openai/gpt-5.4
 temperature: 0.1
 tools:
   read: true

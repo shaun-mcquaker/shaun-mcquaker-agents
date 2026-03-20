@@ -1,7 +1,7 @@
 ---
 description: Deep security vulnerability scanner for PR reviews. Analyzes code changes for injection attacks, secrets exposure, authentication flaws, dependency risks, and unsafe data handling. Invoked when PR touches security-sensitive code.
 mode: subagent
-model: anthropic/claude-opus-4-5
+model: openai/gpt-5.4
 temperature: 0.1
 tools:
   read: true

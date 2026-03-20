@@ -1,7 +1,7 @@
 ---
 description: Visual content analyst. Examines PDFs, images, diagrams, and screenshots to extract information, explain visuals, and convert to structured data.
 mode: subagent
-model: google/gemini-3-flash-preview
+model: openai/gpt-5.4
 temperature: 0.2
 tools:
   write: false

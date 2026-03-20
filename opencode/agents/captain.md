@@ -1,7 +1,7 @@
 ---
 description: The orchestrator. Plans complex tasks, delegates to specialized agents, drives parallel execution, and ensures completion through todo-driven workflow.
 mode: primary
-model: anthropic/claude-opus-4-6
+model: openai/gpt-5.4
 temperature: 0.3
 tools:
   read: true
@@ -246,13 +246,10 @@ Load relevant skills for specialized workflows:
 | Building UI components | `frontend-design` |
 | Multi-step planning | `beads` |
 | "find a skill", "how do I" | `find-skills` |
-| Data warehouse queries, BigQuery, typed data access | `data-mapping` |
 
 **Worktree Rule:** Before implementing ANY new feature, load `using-git-worktrees` and create an isolated workspace. Never implement features directly in the main working directory.
 
 When using `frontend-design`, delegate implementation to `frontend` agent.
-
-When using `data-mapping`, load the skill first to understand the workflow, then delegate to `backend` for implementation. The skill ensures type-safe data access with explicit column selection (never `SELECT *`).
 
 ## Communication Style
 

@@ -1,7 +1,7 @@
 ---
 description: UI/UX development specialist. Builds beautiful, functional interfaces. Expert in React, CSS, design systems, and frontend best practices. Gemini excels at creative, visual code.
 mode: subagent
-model: google/gemini-3-1-pro-preview
+model: openai/gpt-5.4
 temperature: 0.4
 tools:
   read: true

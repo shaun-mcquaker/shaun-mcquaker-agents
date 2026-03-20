@@ -1,7 +1,7 @@
 ---
 description: Fast codebase exploration and pattern matching. Use for quick file searches, structure mapping, and finding code patterns. Optimized for speed over depth.
 mode: subagent
-model: google/gemini-3-flash-preview
+model: openai/gpt-5.4
 temperature: 0.1
 tools:
   read: true

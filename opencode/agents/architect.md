@@ -1,7 +1,7 @@
 ---
 description: Strategic advisor for architecture, complex debugging, and systematic auditing. Call when stuck, making significant design decisions, or need deep analysis.
 mode: subagent
-model: anthropic/claude-sonnet-4-5
+model: openai/gpt-5.4
 temperature: 0.2
 tools:
   write: false

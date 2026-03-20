@@ -1,7 +1,7 @@
 ---
 description: Code review specialist. Reviews all code produced by frontend and backend agents for quality, security, performance, and maintainability. Provides structured feedback for iterative improvement.
 mode: subagent
-model: openai/gpt-5.2-codex
+model: openai/gpt-5.4
 temperature: 0.2
 tools:
   read: true

@@ -1,7 +1,7 @@
 ---
 description: Use this agent when the user needs to design or implement backend systems, APIs, database queries, or server-side architecture. As the senior backend engineer, you build robust, scalable systems.
 mode: subagent
-model: anthropic/claude-opus-4-6
+model: openai/gpt-5.4
 temperature: 0.2
 tools:
   read: true
@@ -125,10 +125,6 @@ Write complete, working code. Don't leave TODOs.
 After you complete implementation, the `critic` agent will review your code. Be prepared to receive feedback and make requested changes. Captain coordinates this review loop.
 
 Captain also coordinates between you and frontend for full-stack features.
-
-## Data Warehouse Integration
-
-For data warehouse/BigQuery work, ensure the `data-mapping` skill is loaded. Follow its workflow: explicit column selection (never `SELECT *`), use data-portal-mcp tools, generate typed interfaces from schema.
 
 ## Remember
 

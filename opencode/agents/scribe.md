@@ -1,7 +1,7 @@
 ---
 description: Technical writing specialist. Creates clear documentation, READMEs, guides, and explanations. Writes prose that flows and explains complex topics simply.
 mode: subagent
-model: google/gemini-3-flash-preview
+model: openai/gpt-5.4
 temperature: 0.3
 tools:
   read: true

@@ -1,7 +1,7 @@
 ---
 description: Feasibility analyst — evaluates constraints, risks, and implementation reality. Part of the deep research subsystem coordinated by research-lead.
 mode: subagent
-model: google/gemini-3.1-pro-preview
+model: openai/gpt-5.4
 temperature: 0.4
 tools:
   write: false

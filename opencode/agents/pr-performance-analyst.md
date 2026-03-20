@@ -1,7 +1,7 @@
 ---
 description: Performance analysis specialist for PR reviews. Analyzes SQL queries, database operations, API calls, and computational patterns for efficiency issues. Expert in BigQuery, N+1 queries, and data pipeline optimization.
 mode: subagent
-model: anthropic/claude-sonnet-4-5
+model: openai/gpt-5.4
 temperature: 0.15
 tools:
   read: true
