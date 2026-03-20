@@ -1,0 +1,25 @@
+window-inherit-working-directory = false
+font-family = FiraCode Nerd Font Mono
+theme = Niji
+shell-integration-features = no-cursor
+cursor-style = underline
+cursor-style-blink = true
+cursor-click-to-move = true
+mouse-hide-while-typing = true
+#background-opacity = 0.8
+#background-opacity-cells = true
+#background-blur = true
+scrollback-limit = 104857600
+window-colorspace = display-p3
+macos-option-as-alt = false
+
+# Option+Delete sends Alt+Backspace (delete word backward) through Zellij
+keybind = opt+backspace=text:\x1b\x7f
+
+# Cmd+arrows → Zellij pane/tab navigation
+# Modifier 9 = Super in Kitty keyboard protocol CSI encoding
+keybind = super+arrow_up=csi:1;9A
+keybind = super+arrow_down=csi:1;9B
+keybind = super+arrow_right=csi:1;9C
+keybind = super+arrow_left=csi:1;9D
+

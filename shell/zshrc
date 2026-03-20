@@ -1,0 +1,174 @@
+# All the non-Prezto stuff first:
+
+[[ -f /opt/dev/sh/chruby/chruby.sh ]] && { type chruby >/dev/null 2>&1 || chruby () { source /opt/dev/sh/chruby/chruby.sh; chruby "$@"; } }
+
+[[ -x /opt/homebrew/bin/brew ]] && eval $(/opt/homebrew/bin/brew shellenv)
+
+# Rust/Cargo and Go binaries
+[[ -d "$HOME/.cargo/bin" ]] && export PATH="$HOME/.cargo/bin:$PATH"
+[[ -d "$HOME/go/bin" ]] && export PATH="$HOME/go/bin:$PATH"
+
+[ -f /opt/dev/dev.sh ] && source /opt/dev/dev.sh
+
+# initialize pyenv virtualenv
+if command -v pyenv >/dev/null 2>&1; then
+  if command -v pyenv-virtualenv-init >/dev/null 2>&1; then
+    eval "$(pyenv virtualenv-init -)"
+  fi
+  eval "$(pyenv init -)"
+fi
+
+[[ -x /opt/homebrew/bin/brew ]] && source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"
+[[ -x /opt/homebrew/bin/brew ]] && source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"
+
+# Shopify Hydrogen alias to local projects
+alias h2='$(npm prefix -s)/node_modules/.bin/shopify hydrogen'
+# cloudplatform: add Shopify clusters to your local kubernetes config
+export KUBECONFIG=${KUBECONFIG:+$KUBECONFIG:}$HOME/.kube/config:$HOME/.kube/config.shopify.cloudplatform
+
+# Handy aliases
+alias cdr='cd $(git root)'
+alias q='bye'
+
+# For the slugs used in the url_capture Cloud Run service
+url_slug() {
+  local url="$1"
+  local pathname=$(echo "$url" | sed -E 's|^https?://[^/]+(/.*)?$|\1|' | sed 's|^/$|/home|')
+  local prefix=$(echo "$pathname" | sed 's|^/||' | sed 's|/|-|g' | cut -c1-10)
+  local hash=$(echo -n "$url" | openssl dgst -md5 -binary | openssl base64 -A | tr '+/' '-_' | tr -d '=')
+  echo "${prefix}-${hash}"
+}
+
+# Stop here for agent/non-interactive sessions (skip prompt, plugins, etc.)
+if [[ -n "$COMPOSER_NO_INTERACTION" || -n "$CURSOR_AGENT" ]]; then
+  return
+fi
+
+# Project dev sessions: work [path] opens a named zellij session with the dev layout
+[[ -f ~/.config/zellij/layouts/dev-session.zsh ]] && source ~/.config/zellij/layouts/dev-session.zsh
+
+
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# Source Prezto.
+if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
+  source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
+fi
+
+[[ -f ~/.zplug/init.zsh ]] && source ~/.zplug/init.zsh
+
+if command -v zplug >/dev/null 2>&1; then
+  zplug "plugins/git",   from:oh-my-zsh
+  zplug "plugins/osx",   from:oh-my-zsh
+  zplug "zsh-users/zsh-autosuggestions"
+  zplug "clvv/fasd"
+  zplug "b4b4r07/enhancd"
+  zplug "junegunn/fzf"
+  zplug "Peltoche/lsd"
+  zplug "g-plane/zsh-yarn-autocompletions"
+  zplug "romkatv/powerlevel10k", as:theme, depth:1
+  zplug "zsh-users/zsh-syntax-highlighting", defer:2
+fi
+
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+[[ -f /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+# Optional local editor backup helpers.
+backup_ide() {
+  local binary_name="$1"
+  local settings_folder="$2"
+
+  if [[ -z "$binary_name" || -z "$settings_folder" ]]; then
+    echo "Usage: backup_ide <binary_name> <settings_folder>"
+    return 1
+  fi
+
+  local editor_key="${binary_name:l}"
+  local backup_dir="$HOME/backups/$(date '+%Y-%m-%d')"
+  local backup_file="$backup_dir/${editor_key}.tar.gz"
+
+  # Skip if already backed up today
+  [[ -f "$backup_file" ]] && return 0
+
+  mkdir -p "$backup_dir"
+  local temp_dir=$(mktemp -d)
+  local user_dir="$HOME/Library/Application Support/$settings_folder/User"
+
+  # Copy only essential config files
+  [[ -f "$user_dir/settings.json" ]] && cp "$user_dir/settings.json" "$temp_dir/"
+  [[ -f "$user_dir/keybindings.json" ]] && cp "$user_dir/keybindings.json" "$temp_dir/"
+  [[ -d "$user_dir/snippets" ]] && cp -r "$user_dir/snippets" "$temp_dir/"
+
+  # Export extensions list and fail loudly if it cannot be captured.
+  if ! command -v "$binary_name" >/dev/null 2>&1; then
+    echo "Error: editor binary '$binary_name' not found in PATH; cannot back up extensions." >&2
+    rm -rf "$temp_dir"
+    return 1
+  fi
+
+  if ! "$binary_name" --list-extensions > "$temp_dir/extensions.txt" 2>/dev/null; then
+    echo "Error: failed to run '$binary_name --list-extensions'." >&2
+    rm -rf "$temp_dir"
+    return 1
+  fi
+
+  if ! grep -q '[^[:space:]]' "$temp_dir/extensions.txt"; then
+    echo "Error: '$binary_name --list-extensions' returned no extensions; aborting backup." >&2
+    rm -rf "$temp_dir"
+    return 1
+  fi
+
+  # Create archive and always clean temp files
+  if ! tar -czf "$backup_file" -C "$temp_dir" .; then
+    echo "Error: failed to create backup archive at '$backup_file'." >&2
+    rm -rf "$temp_dir"
+    return 1
+  fi
+  rm -rf "$temp_dir"
+
+  # Clean backups older than 120 days
+  find "$HOME/backups" -name "${editor_key}.tar.gz" -mtime +120 -delete 2>/dev/null || true
+}
+
+restore_ide() {
+  local binary_name="$1"
+  local settings_folder="$2"
+  local date="${3:-$(date '+%Y-%m-%d')}"
+
+  if [[ -z "$binary_name" || -z "$settings_folder" ]]; then
+    echo "Usage: restore_ide <binary_name> <settings_folder> [date: YYYY-MM-DD]"
+    return 1
+  fi
+
+  local editor_key="${binary_name:l}"
+  local backup_file="$HOME/backups/$date/${editor_key}.tar.gz"
+  local restore_dir="${TMPDIR:-/tmp}/${editor_key}-restore-$date"
+  local target_user_dir="$HOME/Library/Application Support/$settings_folder/User"
+
+  if [[ ! -f "$backup_file" ]]; then
+    echo "Backup not found: $backup_file"
+    return 1
+  fi
+
+  rm -rf "$restore_dir"
+  mkdir -p "$restore_dir"
+  tar -xzf "$backup_file" -C "$restore_dir"
+
+  echo "Restored to: $restore_dir"
+  echo "Extensions list: $restore_dir/extensions.txt"
+  echo "Target settings folder: $target_user_dir"
+}
+
+# Auto-backup on shell start (once per editor per day)
+command -v cursor >/dev/null 2>&1 && backup_ide cursor Cursor
+command -v code >/dev/null 2>&1 && backup_ide code Code
+
+# Optional local profile hook
+[[ -x $HOME/.local/state/tec/profiles/base/current/global/init ]] && eval "$($HOME/.local/state/tec/profiles/base/current/global/init zsh)"

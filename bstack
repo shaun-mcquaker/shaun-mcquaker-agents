@@ -1,0 +1,665 @@
+#!/usr/bin/env bash
+# bstack — manage dotfile symlinks for shaun-mcquaker
+#
+# Usage:
+#   bstack install      Interactive first-run / update: walk the file registry,
+#                        prompt per file, create symlinks, write manifest.
+#   bstack uninstall     Reverse all symlinks from manifest, restore backups.
+#   bstack adopt <path>  Move a file/directory into the repo, replace with a
+#                        symlink, append to manifest, and git-add.
+#   bstack abandon <path> Move a file back out of the repo, remove symlink and
+#                        manifest entry, git-rm from staging.
+#
+# The repo root is auto-detected relative to this script's location.
+
+set -euo pipefail
+
+# --- Constants ---------------------------------------------------------------
+
+REPO_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+MANIFEST_DIR="$HOME/.config/bstack"
+MANIFEST="$MANIFEST_DIR/manifest"
+
+# --- Prefix map: filesystem prefix → repo subtree ---------------------------
+# Order matters: more specific prefixes first.
+
+PREFIX_MAP=(
+  "$HOME/.zprezto/runcoms/|shell/"
+  "$HOME/.p10k.zsh|shell/p10k.zsh"
+  "$HOME/.local/bin/|bin/"
+  "$HOME/.config/nvim/|nvim/"
+  "$HOME/.config/ghostty/|ghostty/"
+  "$HOME/.config/zellij/|zellij/"
+  "$HOME/.config/opencode/|opencode/"
+  "$HOME/.gmailctl/|gmailctl/"
+)
+
+# --- File registry: repo_path|filesystem_path|description --------------------
+# Used by install/uninstall. Adopt builds entries dynamically.
+
+REGISTRY=(
+  "shell/zshrc|$HOME/.zprezto/runcoms/zshrc|Zsh main config (zprezto runcom)"
+  "shell/zprofile|$HOME/.zprezto/runcoms/zprofile|Zsh profile (login shell)"
+  "shell/zshenv|$HOME/.zprezto/runcoms/zshenv|Zsh environment"
+  "shell/zlogin|$HOME/.zprezto/runcoms/zlogin|Zsh login hook"
+  "shell/zlogout|$HOME/.zprezto/runcoms/zlogout|Zsh logout hook"
+  "shell/zpreztorc|$HOME/.zprezto/runcoms/zpreztorc|Zprezto framework config"
+  "shell/p10k.zsh|$HOME/.p10k.zsh|Powerlevel10k prompt theme"
+  "bin/nv|$HOME/.local/bin/nv|Open files in host nvim (fire-and-forget)"
+  "bin/nv-wait|$HOME/.local/bin/nv-wait|Open file in host nvim and block until closed"
+  "bin/work|$HOME/.local/bin/work|Launch Zellij dev workspace"
+  "bin/worktree|$HOME/.local/bin/worktree|Launch isolated worktree workspace"
+  "bin/review|$HOME/.local/bin/review|Launch PR review workspace"
+  "nvim/init.lua|$HOME/.config/nvim/init.lua|Neovim entry point"
+  "nvim/lazy-lock.json|$HOME/.config/nvim/lazy-lock.json|Lazy.nvim plugin lockfile"
+  "nvim/lua/config/init.lua|$HOME/.config/nvim/lua/config/init.lua|Neovim config loader"
+  "nvim/lua/config/keymaps.lua|$HOME/.config/nvim/lua/config/keymaps.lua|Neovim keybindings"
+  "nvim/lua/config/options.lua|$HOME/.config/nvim/lua/config/options.lua|Neovim options"
+  "nvim/lua/config/plugins/autopairs.lua|$HOME/.config/nvim/lua/config/plugins/autopairs.lua|Plugin: auto-pairs"
+  "nvim/lua/config/plugins/bufferline.lua|$HOME/.config/nvim/lua/config/plugins/bufferline.lua|Plugin: buffer tabs"
+  "nvim/lua/config/plugins/cmp.lua|$HOME/.config/nvim/lua/config/plugins/cmp.lua|Plugin: completion"
+  "nvim/lua/config/plugins/comment.lua|$HOME/.config/nvim/lua/config/plugins/comment.lua|Plugin: commenting"
+  "nvim/lua/config/plugins/fugitive.lua|$HOME/.config/nvim/lua/config/plugins/fugitive.lua|Plugin: git fugitive"
+  "nvim/lua/config/plugins/gitsigns.lua|$HOME/.config/nvim/lua/config/plugins/gitsigns.lua|Plugin: git signs"
+  "nvim/lua/config/plugins/indent-blankline.lua|$HOME/.config/nvim/lua/config/plugins/indent-blankline.lua|Plugin: indent guides"
+  "nvim/lua/config/plugins/lsp.lua|$HOME/.config/nvim/lua/config/plugins/lsp.lua|Plugin: LSP config"
+  "nvim/lua/config/plugins/lualine.lua|$HOME/.config/nvim/lua/config/plugins/lualine.lua|Plugin: status line"
+  "nvim/lua/config/plugins/mason.lua|$HOME/.config/nvim/lua/config/plugins/mason.lua|Plugin: Mason LSP installer"
+  "nvim/lua/config/plugins/neo-tree.lua|$HOME/.config/nvim/lua/config/plugins/neo-tree.lua|Plugin: file tree"
+  "nvim/lua/config/plugins/rainbow-delimiters.lua|$HOME/.config/nvim/lua/config/plugins/rainbow-delimiters.lua|Plugin: rainbow brackets"
+  "nvim/lua/config/plugins/telescope.lua|$HOME/.config/nvim/lua/config/plugins/telescope.lua|Plugin: fuzzy finder"
+  "nvim/lua/config/plugins/themes.lua|$HOME/.config/nvim/lua/config/plugins/themes.lua|Plugin: colour themes"
+  "nvim/lua/config/plugins/todo-comments.lua|$HOME/.config/nvim/lua/config/plugins/todo-comments.lua|Plugin: TODO highlights"
+  "nvim/lua/config/plugins/treesitter-context.lua|$HOME/.config/nvim/lua/config/plugins/treesitter-context.lua|Plugin: treesitter context"
+  "nvim/lua/config/plugins/treesitter.lua|$HOME/.config/nvim/lua/config/plugins/treesitter.lua|Plugin: treesitter"
+  "nvim/lua/config/plugins/which-key.lua|$HOME/.config/nvim/lua/config/plugins/which-key.lua|Plugin: keybind hints"
+  "ghostty/config|$HOME/.config/ghostty/config|Ghostty terminal config"
+  "zellij/config.kdl|$HOME/.config/zellij/config.kdl|Zellij main config"
+  "zellij/layouts/dev.kdl|$HOME/.config/zellij/layouts/dev.kdl|Zellij dev layout (static)"
+  "zellij/layouts/dev-session.zsh|$HOME/.config/zellij/layouts/dev-session.zsh|Zellij dev session launcher (work function)"
+  "zellij/plugins/Cargo.toml|$HOME/.config/zellij/plugins/Cargo.toml|tab-titler Cargo manifest"
+  "zellij/plugins/Makefile|$HOME/.config/zellij/plugins/Makefile|tab-titler build script"
+  "zellij/plugins/tab-titler.wasm|$HOME/.config/zellij/plugins/tab-titler.wasm|tab-titler compiled plugin"
+  "zellij/plugins/src/main.rs|$HOME/.config/zellij/plugins/src/main.rs|tab-titler Rust source"
+  "opencode/AGENTS.md|$HOME/.config/opencode/AGENTS.md|OpenCode global agent instructions"
+  "opencode/opencode.jsonc|$HOME/.config/opencode/opencode.jsonc|OpenCode config"
+  "opencode/package.json|$HOME/.config/opencode/package.json|OpenCode plugin package.json"
+  "opencode/tui.json|$HOME/.config/opencode/tui.json|OpenCode TUI theme"
+  "opencode/.gitignore|$HOME/.config/opencode/.gitignore|OpenCode .gitignore"
+  "opencode/plugins/shopify-proxy.ts|$HOME/.config/opencode/plugins/shopify-proxy.ts|Plugin: Shopify auth proxy"
+  "opencode/plugins/zellij-tab-status.ts|$HOME/.config/opencode/plugins/zellij-tab-status.ts|Plugin: Zellij tab renamer"
+  "gmailctl/config.jsonnet|$HOME/.gmailctl/config.jsonnet|Gmail filter rules (gmailctl)"
+)
+
+# OpenCode commands and skills are discovered dynamically and appended
+# to the registry at runtime (see build_dynamic_registry).
+
+# --- Helpers -----------------------------------------------------------------
+
+tput_bold="$(tput bold 2>/dev/null || true)"
+tput_reset="$(tput sgr0 2>/dev/null || true)"
+tput_green="$(tput setaf 2 2>/dev/null || true)"
+tput_yellow="$(tput setaf 3 2>/dev/null || true)"
+tput_red="$(tput setaf 1 2>/dev/null || true)"
+tput_cyan="$(tput setaf 6 2>/dev/null || true)"
+
+info()  { printf "%s▸%s %s\n" "$tput_cyan"  "$tput_reset" "$*"; }
+ok()    { printf "%s✓%s %s\n" "$tput_green"  "$tput_reset" "$*"; }
+warn()  { printf "%s⚠%s %s\n" "$tput_yellow" "$tput_reset" "$*"; }
+err()   { printf "%s✗%s %s\n" "$tput_red"    "$tput_reset" "$*" >&2; }
+
+ensure_manifest_dir() {
+  mkdir -p "$MANIFEST_DIR"
+  touch "$MANIFEST"
+}
+
+manifest_has() {
+  # Check if a repo_path is already in the manifest
+  grep -qF "$1 → " "$MANIFEST" 2>/dev/null
+}
+
+manifest_add() {
+  # Append a repo_path → fs_path entry
+  echo "$1 → $2" >> "$MANIFEST"
+}
+
+manifest_remove() {
+  # Remove entries matching a repo_path
+  local tmp="$MANIFEST.tmp"
+  grep -vF "$1 → " "$MANIFEST" > "$tmp" 2>/dev/null || true
+  mv "$tmp" "$MANIFEST"
+}
+
+backup_path() {
+  # Generate a timestamped backup path
+  local target="$1"
+  echo "${target}.bak.$(date +%Y%m%d%H%M%S)"
+}
+
+do_symlink() {
+  # Create a symlink: $1 = repo file, $2 = filesystem target
+  local repo_file="$REPO_DIR/$1"
+  local fs_target="$2"
+
+  # Ensure parent directory exists
+  mkdir -p "$(dirname "$fs_target")"
+
+  # Back up existing file/dir if it's not already a symlink to us
+  if [ -e "$fs_target" ] || [ -L "$fs_target" ]; then
+    local existing_target
+    existing_target="$(readlink -f "$fs_target" 2>/dev/null || true)"
+    if [ "$existing_target" = "$(readlink -f "$repo_file" 2>/dev/null)" ]; then
+      # Already points to the right place
+      return 0
+    fi
+    local bak
+    bak="$(backup_path "$fs_target")"
+    mv "$fs_target" "$bak"
+    info "Backed up $(basename "$fs_target") → $(basename "$bak")"
+  fi
+
+  ln -s "$repo_file" "$fs_target"
+}
+
+undo_symlink() {
+  # Remove a symlink and restore the most recent backup
+  local fs_target="$1"
+
+  if [ -L "$fs_target" ]; then
+    rm "$fs_target"
+  elif [ -e "$fs_target" ]; then
+    warn "$fs_target exists but is not a symlink — leaving it alone"
+    return 0
+  fi
+
+  # Find the most recent .bak.* file
+  local latest_bak
+  latest_bak="$(ls -1t "${fs_target}.bak."* 2>/dev/null | head -1)"
+  if [ -n "$latest_bak" ]; then
+    mv "$latest_bak" "$fs_target"
+    ok "Restored $(basename "$fs_target") from backup"
+  else
+    warn "No backup found for $fs_target"
+  fi
+}
+
+resolve_repo_path() {
+  # Given a filesystem path, determine where it should live in the repo.
+  # Returns the repo-relative path, or empty string if no prefix matches.
+  # NOTE: do NOT use realpath here — it follows symlinks, which breaks
+  # prefix matching when parent dirs are already symlinked into the repo.
+  local fs_path="$1"
+
+  for entry in "${PREFIX_MAP[@]}"; do
+    local prefix="${entry%%|*}"
+    local repo_prefix="${entry#*|}"
+
+    # Expand ~ in prefix
+    prefix="${prefix/#\~/$HOME}"
+
+    # Special case: exact file match (like ~/.p10k.zsh)
+    if [ "$fs_path" = "$prefix" ]; then
+      echo "$repo_prefix"
+      return 0
+    fi
+
+    # Directory prefix match
+    if [[ "$fs_path" == "$prefix"* ]]; then
+      local relative="${fs_path#$prefix}"
+      echo "${repo_prefix}${relative}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+build_dynamic_registry() {
+  # Discover opencode commands, agents, and skills from the repo
+  # and add them to the REGISTRY if not already present.
+
+  # Commands
+  if [ -d "$REPO_DIR/opencode/commands" ]; then
+    for f in "$REPO_DIR/opencode/commands"/*.md; do
+      [ -f "$f" ] || continue
+      local name
+      name="$(basename "$f")"
+      local repo_path="opencode/commands/$name"
+      local fs_path="$HOME/.config/opencode/commands/$name"
+      local already=0
+      for entry in "${REGISTRY[@]}"; do
+        [[ "${entry%%|*}" == "$repo_path" ]] && already=1 && break
+      done
+      [ "$already" -eq 0 ] && REGISTRY+=("$repo_path|$fs_path|OpenCode command: $name")
+    done
+  fi
+
+  # Agents (file-level)
+  if [ -d "$REPO_DIR/opencode/agents" ]; then
+    for f in "$REPO_DIR/opencode/agents"/*.md; do
+      [ -f "$f" ] || continue
+      local name
+      name="$(basename "$f")"
+      local repo_path="opencode/agents/$name"
+      local fs_path="$HOME/.config/opencode/agents/$name"
+      local already=0
+      for entry in "${REGISTRY[@]}"; do
+        [[ "${entry%%|*}" == "$repo_path" ]] && already=1 && break
+      done
+      [ "$already" -eq 0 ] && REGISTRY+=("$repo_path|$fs_path|OpenCode agent: $name")
+    done
+  fi
+
+  # Skills (directory-level)
+  if [ -d "$REPO_DIR/opencode/skills" ]; then
+    for d in "$REPO_DIR/opencode/skills"/*/; do
+      [ -d "$d" ] || continue
+      local name
+      name="$(basename "$d")"
+      local repo_path="opencode/skills/$name"
+      local fs_path="$HOME/.config/opencode/skills/$name"
+      local already=0
+      for entry in "${REGISTRY[@]}"; do
+        [[ "${entry%%|*}" == "$repo_path" ]] && already=1 && break
+      done
+      [ "$already" -eq 0 ] && REGISTRY+=("$repo_path|$fs_path|OpenCode skill: $name")
+    done
+  fi
+}
+
+# --- Subcommands -------------------------------------------------------------
+
+cmd_install() {
+  ensure_manifest_dir
+  build_dynamic_registry
+
+  local installed=0 skipped=0 existing=0
+
+  for entry in "${REGISTRY[@]}"; do
+    local repo_path="${entry%%|*}"
+    local remainder="${entry#*|}"
+    local fs_path="${remainder%%|*}"
+    local desc="${remainder#*|}"
+    local repo_file="$REPO_DIR/$repo_path"
+
+    # Skip if the repo doesn't have this file yet (pre-adopt)
+    if [ ! -e "$repo_file" ]; then
+      continue
+    fi
+
+    # Skip if symlink already points to the right place
+    if [ -L "$fs_path" ]; then
+      local current_target
+      current_target="$(readlink -f "$fs_path" 2>/dev/null || true)"
+      if [ "$current_target" = "$(readlink -f "$repo_file" 2>/dev/null)" ]; then
+        # Heal manifest if entry is missing
+        if ! manifest_has "$repo_path"; then
+          manifest_add "$repo_path" "$fs_path"
+          info "Added missing manifest entry for $repo_path"
+        fi
+        existing=$((existing + 1))
+        continue
+      fi
+    fi
+
+    # Skip if in manifest and symlink is intact (redundant with above, but
+    # covers any edge cases where readlink comparison doesn't match)
+    if manifest_has "$repo_path"; then
+      if [ -L "$fs_path" ]; then
+        existing=$((existing + 1))
+        continue
+      else
+        warn "$repo_path is in manifest but symlink is broken — re-prompting"
+      fi
+    fi
+
+    printf "\n%s%s%s%s → %s\n" "$tput_bold" "$tput_cyan" "$repo_path" "$tput_reset" "$fs_path"
+    printf "  %s\n" "$desc"
+    printf "  Install? [Y/n/d/s] "
+    read -r answer
+    case "${answer:-Y}" in
+      [Yy]*)
+        do_symlink "$repo_path" "$fs_path"
+        manifest_add "$repo_path" "$fs_path"
+        ok "$repo_path"
+        installed=$((installed + 1))
+        ;;
+      [Dd]*)
+        if [ -e "$fs_path" ] && [ -e "$repo_file" ]; then
+          diff --color=auto -u "$fs_path" "$repo_file" || true
+        else
+          warn "Cannot diff — one side does not exist"
+        fi
+        # Re-prompt after diff
+        printf "  Install? [Y/n] "
+        read -r answer2
+        case "${answer2:-Y}" in
+          [Yy]*)
+            do_symlink "$repo_path" "$fs_path"
+            manifest_add "$repo_path" "$fs_path"
+            ok "$repo_path"
+            installed=$((installed + 1))
+            ;;
+          *) skipped=$((skipped + 1)) ;;
+        esac
+        ;;
+      [Ss]*)
+        info "Skipping remaining files."
+        break
+        ;;
+      *)
+        skipped=$((skipped + 1))
+        ;;
+    esac
+  done
+
+  printf "\n%sDone.%s Installed: %d  Skipped: %d  Already linked: %d\n" \
+    "$tput_bold" "$tput_reset" "$installed" "$skipped" "$existing"
+}
+
+cmd_uninstall() {
+  if [ ! -f "$MANIFEST" ]; then
+    err "No manifest found at $MANIFEST — nothing to uninstall."
+    exit 1
+  fi
+
+  local count=0
+  while IFS=' → ' read -r repo_path fs_path; do
+    # Skip comments and blank lines
+    [[ "$repo_path" =~ ^#.*$ ]] && continue
+    [ -z "$repo_path" ] && continue
+    # The read with ' → ' delimiter is tricky; parse manually
+    fs_path="${fs_path# }"
+    repo_path="${repo_path% }"
+    # Expand ~
+    fs_path="${fs_path/#\~/$HOME}"
+
+    undo_symlink "$fs_path"
+    count=$((count + 1))
+  done < <(grep ' → ' "$MANIFEST")
+
+  # Also undo bstack itself
+  local bstack_target="$HOME/.local/bin/bstack"
+  if [ -L "$bstack_target" ] && [ "$(readlink -f "$bstack_target")" = "$REPO_DIR/bstack" ]; then
+    rm "$bstack_target"
+    ok "Removed bstack from PATH"
+  fi
+
+  rm -f "$MANIFEST"
+  ok "Manifest removed. Uninstalled $count symlinks."
+}
+
+cmd_adopt() {
+  if [ -z "${1:-}" ]; then
+    err "Usage: bstack adopt <path>"
+    exit 1
+  fi
+
+  ensure_manifest_dir
+
+  local source_path="$1"
+
+  # Resolve to absolute path without following symlinks in parent components.
+  # We can't use realpath here because if a parent directory is already a
+  # symlink into the repo (from a prior adopt), realpath would resolve to
+  # the repo path instead of the filesystem path, breaking prefix matching.
+  case "$source_path" in
+    /*) ;;  # already absolute
+    *)  source_path="$PWD/$source_path" ;;
+  esac
+  # Normalise away . and .. without following symlinks
+  source_path="$(cd "$(dirname "$source_path")" 2>/dev/null && pwd)/$(basename "$source_path")"
+
+  if [ ! -e "$source_path" ]; then
+    err "Path does not exist: $source_path"
+    exit 1
+  fi
+
+  # Check if the file lives inside a directory already adopted by bstack.
+  # This happens when e.g. someone tries to adopt skills/foo/SKILL.md but
+  # skills/foo/ is already a symlink into the repo.  The real path will
+  # resolve into REPO_DIR, which is a dead giveaway.
+  local real_source
+  real_source="$(realpath "$source_path" 2>/dev/null || true)"
+  if [ -n "$real_source" ] && [[ "$real_source" == "$REPO_DIR"* ]]; then
+    # Walk up from source_path to find the adopted symlink
+    local check_dir
+    check_dir="$(dirname "$source_path")"
+    local adopted_link=""
+    while [ "$check_dir" != "/" ] && [ "$check_dir" != "$HOME" ]; do
+      if [ -L "$check_dir" ]; then
+        local link_target
+        link_target="$(realpath "$check_dir" 2>/dev/null || true)"
+        if [[ "$link_target" == "$REPO_DIR"* ]]; then
+          adopted_link="$check_dir"
+          break
+        fi
+      fi
+      check_dir="$(dirname "$check_dir")"
+    done
+    if [ -n "$adopted_link" ]; then
+      ok "Already managed by bstack — parent directory is adopted:"
+      info "  $adopted_link → $(readlink "$adopted_link")"
+      info "Edits to files inside this directory are automatically tracked."
+    else
+      ok "Already lives inside the bstack repo. No action needed."
+    fi
+    exit 0
+  fi
+
+  # Determine repo destination
+  local repo_rel
+  if ! repo_rel="$(resolve_repo_path "$source_path")"; then
+    err "Cannot determine repo location for: $source_path"
+    err "Known prefixes:"
+    for entry in "${PREFIX_MAP[@]}"; do
+      printf "  %s\n" "${entry%%|*}" >&2
+    done
+    exit 1
+  fi
+
+  local repo_dest="$REPO_DIR/$repo_rel"
+
+  # Check for collisions
+  if [ -e "$repo_dest" ]; then
+    err "Already exists in repo: $repo_rel"
+    exit 1
+  fi
+
+  # Check if already a symlink pointing into the repo
+  if [ -L "$source_path" ]; then
+    local current_target
+    current_target="$(readlink -f "$source_path")"
+    if [[ "$current_target" == "$REPO_DIR"* ]]; then
+      err "Already managed by bstack (symlink points into repo)"
+      exit 1
+    fi
+  fi
+
+  # Confirm
+  printf "%sAdopt:%s %s\n" "$tput_bold" "$tput_reset" "$source_path"
+  printf "%s  →%s %s\n" "$tput_cyan" "$tput_reset" "$repo_rel"
+  printf "  Proceed? [Y/n] "
+  read -r answer
+  case "${answer:-Y}" in
+    [Yy]*) ;;
+    *)
+      info "Aborted."
+      return 0
+      ;;
+  esac
+
+  # Create parent directories in repo
+  mkdir -p "$(dirname "$repo_dest")"
+
+  # Back up before moving — safety net in case something goes wrong
+  local bak
+  bak="$(backup_path "$source_path")"
+  cp -a "$source_path" "$bak"
+
+  # Move into repo
+  mv "$source_path" "$repo_dest"
+
+  # Create symlink from original location → repo
+  if ! ln -s "$repo_dest" "$source_path"; then
+    err "Symlink creation failed — restoring from backup"
+    mv "$repo_dest" "$source_path" 2>/dev/null || mv "$bak" "$source_path"
+    rm -f "$bak"
+    exit 1
+  fi
+
+  # Backup succeeded and symlink is in place — clean up
+  rm -rf "$bak"
+
+  # Add to manifest
+  manifest_add "$repo_rel" "$source_path"
+
+  # Git add
+  (cd "$REPO_DIR" && git add "$repo_rel" 2>/dev/null) || true
+
+  ok "Adopted: $repo_rel"
+  ok "Symlink: $source_path → $repo_dest"
+  info "Staged in git. Commit when ready."
+}
+
+cmd_abandon() {
+  if [ -z "${1:-}" ]; then
+    err "Usage: bstack abandon <path>"
+    err "  <path> can be the filesystem path or the repo-relative path."
+    exit 1
+  fi
+
+  ensure_manifest_dir
+
+  local input="$1"
+  local repo_rel=""
+  local fs_path=""
+
+  # Try to match against manifest — accept either side of the arrow
+  while IFS= read -r line; do
+    [[ "$line" =~ ^#.*$ ]] && continue
+    [ -z "$line" ] && continue
+    local m_repo="${line%% → *}"
+    local m_fs="${line#* → }"
+    m_fs="${m_fs/#\~/$HOME}"
+
+    local input_resolved
+    input_resolved="$(realpath "$input" 2>/dev/null || echo "$input")"
+
+    if [ "$m_repo" = "$input" ] || [ "$m_fs" = "$input_resolved" ] || [ "$m_fs" = "$input" ]; then
+      repo_rel="$m_repo"
+      fs_path="$m_fs"
+      break
+    fi
+  done < "$MANIFEST"
+
+  if [ -z "$repo_rel" ]; then
+    err "Not found in manifest: $input"
+    exit 1
+  fi
+
+  local repo_file="$REPO_DIR/$repo_rel"
+
+  if [ ! -e "$repo_file" ]; then
+    err "Repo file missing: $repo_file"
+    exit 1
+  fi
+
+  # Confirm
+  printf "%sUnadopt:%s %s\n" "$tput_bold" "$tput_reset" "$repo_rel"
+  printf "%s  →%s %s\n" "$tput_cyan" "$tput_reset" "$fs_path"
+  printf "  This will move the file back and remove it from the repo.\n"
+  printf "  Proceed? [Y/n] "
+  read -r answer
+  case "${answer:-Y}" in
+    [Yy]*) ;;
+    *)
+      info "Aborted."
+      return 0
+      ;;
+  esac
+
+  # Remove the symlink
+  if [ -L "$fs_path" ]; then
+    rm "$fs_path"
+  elif [ -e "$fs_path" ]; then
+    warn "$fs_path is not a symlink — backing up before overwriting"
+    mv "$fs_path" "$(backup_path "$fs_path")"
+  fi
+
+  # Move from repo back to filesystem
+  mkdir -p "$(dirname "$fs_path")"
+  mv "$repo_file" "$fs_path"
+
+  # Remove from manifest
+  manifest_remove "$repo_rel"
+
+  # Git rm (staged removal)
+  (cd "$REPO_DIR" && git rm -r --cached "$repo_rel" 2>/dev/null) || true
+
+  # Clean up empty parent dirs in repo
+  local parent
+  parent="$(dirname "$repo_file")"
+  while [ "$parent" != "$REPO_DIR" ] && [ -d "$parent" ] && [ -z "$(ls -A "$parent" 2>/dev/null)" ]; do
+    rmdir "$parent"
+    parent="$(dirname "$parent")"
+  done
+
+  ok "Abandoned: $repo_rel → $fs_path"
+  info "Removed from git staging. Commit when ready."
+}
+
+# --- Self-bootstrap ----------------------------------------------------------
+
+ensure_on_path() {
+  local bstack_target="$HOME/.local/bin/bstack"
+  if [ -L "$bstack_target" ] && [ "$(readlink -f "$bstack_target")" = "$REPO_DIR/bstack" ]; then
+    return 0
+  fi
+  printf "\n%s%sbstack%s is not on your PATH yet.\n" "$tput_bold" "$tput_cyan" "$tput_reset"
+  printf "  Symlink to %s? [Y/n] " "$bstack_target"
+  read -r answer
+  case "${answer:-Y}" in
+    [Yy]*)
+      mkdir -p "$(dirname "$bstack_target")"
+      if [ -e "$bstack_target" ]; then
+        mv "$bstack_target" "$(backup_path "$bstack_target")"
+      fi
+      ln -s "$REPO_DIR/bstack" "$bstack_target"
+      ok "bstack → $bstack_target"
+      ;;
+    *) ;;
+  esac
+}
+
+# --- Main --------------------------------------------------------------------
+
+ensure_on_path
+
+case "${1:-}" in
+  install)   cmd_install ;;
+  uninstall) cmd_uninstall ;;
+  adopt)     shift; cmd_adopt "$@" ;;
+  abandon)   shift; cmd_abandon "$@" ;;
+  manifest)  cat "$MANIFEST" 2>/dev/null || err "No manifest found." ;;
+  -h|--help|help|"")
+    cat <<EOF
+${tput_bold}bstack${tput_reset} — manage dotfile symlinks for shaun-mcquaker
+
+${tput_bold}Usage:${tput_reset}
+  bstack install        Interactive setup: create symlinks from repo → filesystem
+  bstack uninstall      Reverse all symlinks, restore backups
+  bstack adopt <path>   Move a file/directory into the repo and replace with symlink
+  bstack abandon <path> Move a file back out of the repo and remove the symlink
+  bstack manifest       Dump the manifest (all tracked repo → filesystem mappings)
+
+${tput_bold}Manifest:${tput_reset}  $MANIFEST
+${tput_bold}Repo:${tput_reset}      $REPO_DIR
+EOF
+    ;;
+  *)
+    err "Unknown command: $1"
+    err "Run 'bstack help' for usage."
+    exit 1
+    ;;
+esac

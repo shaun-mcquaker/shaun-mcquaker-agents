@@ -1,0 +1,20 @@
+#
+# Defines environment variables.
+#
+# Authors:
+#   Sorin Ionescu <sorin.ionescu@gmail.com>
+#
+
+# Ensure that a non-login, non-interactive shell has a defined environment.
+if [[ ( "$SHLVL" -eq 1 && ! -o LOGIN ) && -s "${ZDOTDIR:-$HOME}/.zprofile" ]]; then
+  source "${ZDOTDIR:-$HOME}/.zprofile"
+fi
+
+# User scripts
+[[ -d "$HOME/.local/bin" ]] && export PATH="$HOME/.local/bin:$PATH"
+
+# Default editor — nv-wait opens in the host nvim (via --remote-wait) and
+# blocks until the buffer is closed, which is what tools like OpenCode /editor
+# need for round-trip semantics. Falls back to standalone nvim outside Zellij.
+export EDITOR=nv-wait
+export VISUAL=nv-wait

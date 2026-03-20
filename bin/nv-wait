@@ -1,0 +1,164 @@
+#!/bin/sh
+# nv-wait — open a file in the host nvim and BLOCK until the buffer is closed.
+# Intended as $EDITOR/$VISUAL so tools like OpenCode /editor round-trip.
+#
+# Neovim never implemented --remote-wait (E5600), so we build the wait
+# semantics ourselves:
+#   1. --remote to open the file (fire-and-forget)
+#   2. Write a Lua script that attaches BufDelete/BufWipeout autocmds to
+#      the target buffer; the autocmd writes a signal file on close
+#   3. loadfile() that script remotely via --remote-expr
+#   4. Shell polls for the signal file, then exits
+#
+# Only handles a single file (which is all /editor needs).
+
+LOG="$TMPDIR/nv-wait-debug.log"
+log() { echo "$(date '+%H:%M:%S') $*" >> "$LOG"; }
+
+log "--- nv-wait invoked ---"
+log "  args: $*"
+log "  NVIM_SOCKET_PATH=$NVIM_SOCKET_PATH"
+log "  PWD=$PWD"
+
+if [ $# -eq 0 ]; then
+  echo "nv-wait: no file specified" >&2
+  exit 1
+fi
+
+# --- Resolve nvim socket ---
+if [ -n "$NVIM_SOCKET_PATH" ]; then
+  sock="$NVIM_SOCKET_PATH"
+elif [ -n "$ZELLIJ_SESSION_NAME" ]; then
+  tab_name="$(zellij action dump-layout 2>/dev/null | grep 'tab name=.*focus=true' | sed 's/.*tab name="\([^"]*\)".*/\1/')"
+  sock="/tmp/nvim-${tab_name}.sock"
+else
+  log "  no socket context — falling back to standalone nvim"
+  exec nvim "$@"
+fi
+
+if [ ! -S "$sock" ]; then
+  log "  no socket at $sock — falling back to standalone nvim"
+  echo "nv-wait: no nvim socket at $sock — falling back to standalone nvim" >&2
+  exec nvim "$@"
+fi
+
+log "  using socket: $sock"
+
+# --- Claim the terminal: clear and show a holding message ---
+# Colours: 38;5;n = fg, 1 = bold, 2 = dim, 0 = reset
+R='\033[0m'          # reset
+B='\033[1;38;5;75m'  # bold blue — box border
+T='\033[1;38;5;156m' # bold green — title text
+S='\033[2;38;5;243m' # dim grey — shadow
+H='\033[38;5;223m'   # warm white — hint text
+K='\033[1;38;5;215m' # bold amber — keybind
+D='\033[38;5;102m'   # medium grey — dashes
+N='\033[1;38;5;117m' # bright cyan — "in nvim"
+printf '\033[2J\033[H\n\n\n'
+printf "     ${B}╭─────────────────────────────────────────╮${R}\n"
+printf "     ${B}│${R}                                         ${B}│${S}░${R}\n"
+printf "     ${B}│${R}   ${T}┌─┐┌┬┐┬┌┬┐┬┌┐┌┌─┐${R}                     ${B}│${S}░${R}\n"
+printf "     ${B}│${R}   ${T}├┤  │││ │ │││││ ┬${R}                     ${B}│${S}░${R}\n"
+printf "     ${B}│${R}   ${T}└─┘─┴┘┴ ┴ ┴┘└┘└─┘${R}  ${D}╌╌╌${R}  ${N}in nvim${R}       ${B}│${S}░${R}\n"
+printf "     ${B}│${R}                                         ${B}│${S}░${R}\n"
+printf "     ${B}│${R}   ${H}Save and close the buffer to continue${R} ${B}│${S}░${R}\n"
+printf "     ${B}│${R}   ${K}‹space-w›${R}                             ${B}│${S}░${R}\n"
+printf "     ${B}│${R}                                         ${B}│${S}░${R}\n"
+printf "     ${B}╰─────────────────────────────────────────╯${S}░${R}\n"
+printf "      ${S}░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░${R}\n"
+
+# --- Resolve file path ---
+file="$(realpath "$1")"
+log "  file: $file"
+
+# --- Signal file ---
+signal="$(mktemp "$TMPDIR/nv-wait-signal.XXXXXX")"
+rm -f "$signal"  # remove it; we wait for it to reappear
+log "  signal: $signal"
+
+# --- Open file in nvim ---
+nvim --headless --server "$sock" --remote "$file" 2>>"$LOG"
+log "  --remote sent"
+
+# Focus the nvim pane in Zellij so the user lands in the editor.
+if [ -n "$ZELLIJ_SESSION_NAME" ]; then
+  zellij action move-focus left 2>/dev/null
+  log "  focused nvim pane"
+fi
+
+# Small delay to let nvim load the buffer before we attach the autocmd.
+sleep 0.15
+
+# --- Write Lua setup script ---
+lua_script="$TMPDIR/nv-wait-lua-$$.lua"
+cat > "$lua_script" <<LUAEOF
+local signal = "$signal"
+local target = "$file"
+
+-- Find the buffer by full path
+local bufnr = nil
+for _, b in ipairs(vim.api.nvim_list_bufs()) do
+  if vim.api.nvim_buf_is_loaded(b) then
+    local name = vim.api.nvim_buf_get_name(b)
+    if name == target then
+      bufnr = b
+      break
+    end
+  end
+end
+
+if not bufnr then
+  return "err:buffer_not_found"
+end
+
+-- Switch to the buffer and drop into insert mode so the user can start typing.
+vim.api.nvim_set_current_buf(bufnr)
+vim.cmd("startinsert")
+
+local group = vim.api.nvim_create_augroup("NvWait_" .. bufnr, { clear = true })
+
+local function fire()
+  local f = io.open(signal, "w")
+  if f then f:write("done\\n"); f:close() end
+  pcall(vim.api.nvim_del_augroup_by_id, group)
+  -- Return focus to the OpenCode pane (right of nvim).
+  vim.fn.jobstart("zellij action move-focus right", { detach = true })
+end
+
+vim.api.nvim_create_autocmd({ "BufDelete", "BufWipeout" }, {
+  group = group,
+  buffer = bufnr,
+  once = true,
+  callback = fire,
+})
+
+return "ok:" .. bufnr
+LUAEOF
+
+log "  lua script: $lua_script"
+
+# --- Execute remotely via loadfile ---
+# Escape the path for embedding in a Lua string (handle any single quotes)
+escaped_lua="$(echo "$lua_script" | sed "s/'/\\\\'/g")"
+result="$(nvim --headless --server "$sock" --remote-expr "luaeval('loadfile(\"$escaped_lua\")()')" 2>>"$LOG")"
+log "  autocmd setup result: $result"
+
+# Clean up lua script
+rm -f "$lua_script"
+
+if echo "$result" | grep -q '^err:'; then
+  log "  ERROR: $result — aborting"
+  echo "nv-wait: could not find buffer for $file in nvim" >&2
+  rm -f "$signal"
+  exit 1
+fi
+
+# --- Wait for signal ---
+log "  waiting for signal..."
+while [ ! -f "$signal" ]; do
+  sleep 0.2
+done
+
+log "  signal received — exiting"
+rm -f "$signal"
+exit 0

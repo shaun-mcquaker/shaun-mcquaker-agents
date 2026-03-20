@@ -1,0 +1,59 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "@shopify-internal/opencode-proxy-plugin",
+    "opencode-beads@0.4.0"
+  ],
+  "model": "openai/gpt-5.4",
+  "default_agent": "captain",
+  "autoupdate": false,
+  "permission": {
+    "external_directory": {
+      "/var/folders/**": "allow",
+      "/private/var/folders/**": "allow",
+      "/Users/shaunmcquaker/Documents/Logseq/**": "allow",
+      "/Users/shaunmcquaker/Documents/Work/**": "allow"
+    }
+  },
+  "lsp": {
+    "lua-ls": {
+      "disabled": true
+    }
+  },
+  "mcp": {
+    "data-portal": {
+      "type": "local",
+      "command": ["/opt/homebrew/bin/uvx", "data-portal-mcp"],
+    },
+    "shopify-dev": {
+      "type": "local",
+      "command": ["npx", "-y", "@shopify/dev-mcp@latest"],
+    },
+    "gworkspace": {
+      "type": "local",
+      "command": [
+        "/opt/homebrew/bin/uv",
+        "run",
+        "--directory",
+        "/Users/shaunmcquaker/src/github.com/Shopify/gworkspace-mcp",
+        "gworkspace-mcp"
+      ],
+    },
+    "slack": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@shopify-internal/slack-mcp@latest"
+      ]
+    },
+    "vault": {
+      "type": "remote",
+      "url": "https://vault.shopify.io/mcp"
+    },
+    "sage": {
+      "type": "remote",
+      "url": "https://proxy-shopify-ai.local.shop.dev/mcp/sage",
+    }
+  }
+}

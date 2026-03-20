@@ -1,0 +1,19 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+layout_file="$HOME/.config/zellij/layouts/dev-session.zsh"
+
+if [[ ! -f "$layout_file" ]]; then
+  echo "worktree: missing $layout_file" >&2
+  exit 1
+fi
+
+source "$layout_file"
+
+if ! typeset -f worktree >/dev/null 2>&1; then
+  echo "worktree: function not available after sourcing $layout_file" >&2
+  exit 1
+fi
+
+worktree "$@"

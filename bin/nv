@@ -1,0 +1,28 @@
+#!/bin/sh
+# nv — open file(s) in the nvim instance for the current Zellij tab
+#
+# Usage: nv file1 [file2 ...]
+#
+# Resolves the nvim socket in order of preference:
+#   1. $NVIM_SOCKET_PATH (set by the work layout for all panes)
+#   2. dump-layout focused tab name (fallback for ad-hoc sessions)
+#   3. Plain nvim (outside Zellij entirely)
+
+if [ -n "$NVIM_SOCKET_PATH" ]; then
+  sock="$NVIM_SOCKET_PATH"
+elif [ -n "$ZELLIJ_SESSION_NAME" ]; then
+  tab_name="$(zellij action dump-layout 2>/dev/null | grep 'tab name=.*focus=true' | sed 's/.*tab name="\([^"]*\)".*/\1/')"
+  sock="/tmp/nvim-${tab_name}.sock"
+else
+  exec nvim "$@"
+fi
+
+if [ ! -S "$sock" ]; then
+  echo "nv: no nvim socket at $sock" >&2
+  exit 1
+fi
+
+for f in "$@"; do
+  real="$(realpath "$f")"
+  nvim --server "$sock" --remote "$real"
+done

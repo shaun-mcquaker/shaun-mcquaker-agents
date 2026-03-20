@@ -1,0 +1,30 @@
+layout {
+    pane size=1 borderless=true {
+        plugin location="zellij:tab-bar"
+    }
+    pane split_direction="vertical" {
+        pane {
+            name "nvim"
+            command "bash"
+            args "-c" "ZELLIJ_TAB_NAME='dev' NVIM_SOCKET_PATH='/tmp/nvim-dev.sock' rm -f '/tmp/nvim-dev.sock'; exec nvim --listen '/tmp/nvim-dev.sock'"
+            size "50%"
+        }
+        pane split_direction="horizontal" {
+            pane {
+                name "opencode"
+                command "bash"
+                args "-c" "export ZELLIJ_TAB_NAME='dev' NVIM_SOCKET_PATH='/tmp/nvim-dev.sock'; if command -v devx >/dev/null 2>&1; then exec devx opencode; elif command -v opencode >/dev/null 2>&1; then exec opencode; else echo 'opencode not found' >&2; exit 127; fi"
+                size "60%"
+            }
+            pane {
+                name "shell"
+                cwd "/Users/shaunmcquaker"
+                command "bash"
+                args "-c" "ZELLIJ_TAB_NAME='dev' NVIM_SOCKET_PATH='/tmp/nvim-dev.sock' exec zsh"
+            }
+        }
+    }
+    pane size=2 borderless=true {
+        plugin location="zellij:status-bar"
+    }
+}
