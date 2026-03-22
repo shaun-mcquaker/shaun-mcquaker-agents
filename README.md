@@ -19,11 +19,12 @@ This is not an application repo.
 
 It is a workstation/config repo that keeps Shaun's local development environment in version control and wires those files into the expected locations under `~/.config`, `~/.local/bin`, and `~/.zprezto/runcoms`.
 
-The most important subtree is `opencode/`, which contains:
+The most important OpenCode subtrees are `.agents/` and `opencode/`:
 
-- agent definitions in `opencode/agents/`
-- slash-style command docs in `opencode/commands/`
-- reusable skills in `opencode/skills/`
+- repo-local agent definitions in `.agents/agents/`
+- slash-style command docs in `.agents/commands/`
+- reusable skills in `.agents/skills/`
+- shared prompt/supporting docs in `.agents/knowledge/`
 - OpenCode runtime config in `opencode/opencode.jsonc`
 - local plugin code in `opencode/plugins/`
 
@@ -37,7 +38,8 @@ The most important subtree is `opencode/`, which contains:
 | `nvim/` | Neovim config |
 | `ghostty/` | Ghostty config |
 | `zellij/` | Zellij config, layouts, and plugin source/assets |
-| `opencode/` | OpenCode config, agents, commands, skills, and plugins |
+| `.agents/` | Canonical repo-local agents, commands, skills, and knowledge |
+| `opencode/` | OpenCode runtime config and plugins |
 
 ## qstack
 
@@ -71,9 +73,10 @@ The OpenCode config in this repo is opinionated around a specialist-agent workfl
 
 Current highlights:
 
-- repo-local agents live in `opencode/agents/`
-- reusable workflow skills live in `opencode/skills/`
-- custom commands live in `opencode/commands/`
+- repo-local agents live in `.agents/agents/`
+- reusable workflow skills live in `.agents/skills/`
+- custom commands live in `.agents/commands/`
+- shared prompt content lives in `.agents/knowledge/`
 - the `opencode-beads` plugin is enabled
 - local plugin code currently includes `opencode/plugins/zellij-tab-status.ts`
 - MCP servers are configured in `opencode/opencode.jsonc`
@@ -141,5 +144,7 @@ After that, restart the tools that consume the config:
 ## Notes
 
 - This repo is intended to be the source of truth for the managed local config it installs.
+- `.agents/` is the canonical home for repo-local OpenCode skills, commands, agents, and knowledge.
+- After creating or renaming a repo-local skill, command, or agent, run `qstack install` to refresh the symlinks in `~/.config/opencode/`.
 - `opencode/opencode.jsonc` is the canonical place for OpenCode runtime defaults and MCP configuration.
-- `qstack` dynamically discovers many OpenCode commands, agents, and skills instead of hardcoding every file.
+- `qstack` dynamically discovers repo-local OpenCode commands, agents, skills, and knowledge from `.agents/` instead of hardcoding every file.

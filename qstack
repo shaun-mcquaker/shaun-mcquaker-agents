@@ -92,8 +92,9 @@ REGISTRY=(
   "gmailctl/config.jsonnet|$HOME/.gmailctl/config.jsonnet|Gmail filter rules (gmailctl)"
 )
 
-# OpenCode commands and skills are discovered dynamically and appended
-# to the registry at runtime (see build_dynamic_registry).
+# Repo-local OpenCode commands, agents, skills, and knowledge are discovered
+# dynamically from .agents/ and appended to the registry at runtime
+# (see build_dynamic_registry).
 
 # --- Helpers -----------------------------------------------------------------
 
@@ -220,16 +221,16 @@ resolve_repo_path() {
 }
 
 build_dynamic_registry() {
-  # Discover opencode commands, agents, and skills from the repo
-  # and add them to the REGISTRY if not already present.
+  # Discover repo-local OpenCode commands, agents, skills, and knowledge
+  # from .agents/ and add them to the REGISTRY if not already present.
 
   # Commands
-  if [ -d "$REPO_DIR/opencode/commands" ]; then
-    for f in "$REPO_DIR/opencode/commands"/*.md; do
+  if [ -d "$REPO_DIR/.agents/commands" ]; then
+    for f in "$REPO_DIR/.agents/commands"/*.md; do
       [ -f "$f" ] || continue
       local name
       name="$(basename "$f")"
-      local repo_path="opencode/commands/$name"
+      local repo_path=".agents/commands/$name"
       local fs_path="$HOME/.config/opencode/commands/$name"
       local already=0
       for entry in "${REGISTRY[@]}"; do
@@ -240,12 +241,12 @@ build_dynamic_registry() {
   fi
 
   # Agents (file-level)
-  if [ -d "$REPO_DIR/opencode/agents" ]; then
-    for f in "$REPO_DIR/opencode/agents"/*.md; do
+  if [ -d "$REPO_DIR/.agents/agents" ]; then
+    for f in "$REPO_DIR/.agents/agents"/*.md; do
       [ -f "$f" ] || continue
       local name
       name="$(basename "$f")"
-      local repo_path="opencode/agents/$name"
+      local repo_path=".agents/agents/$name"
       local fs_path="$HOME/.config/opencode/agents/$name"
       local already=0
       for entry in "${REGISTRY[@]}"; do
@@ -256,12 +257,12 @@ build_dynamic_registry() {
   fi
 
   # Skills (directory-level)
-  if [ -d "$REPO_DIR/opencode/skills" ]; then
-    for d in "$REPO_DIR/opencode/skills"/*/; do
+  if [ -d "$REPO_DIR/.agents/skills" ]; then
+    for d in "$REPO_DIR/.agents/skills"/*/; do
       [ -d "$d" ] || continue
       local name
       name="$(basename "$d")"
-      local repo_path="opencode/skills/$name"
+      local repo_path=".agents/skills/$name"
       local fs_path="$HOME/.config/opencode/skills/$name"
       local already=0
       for entry in "${REGISTRY[@]}"; do
@@ -270,18 +271,35 @@ build_dynamic_registry() {
       [ "$already" -eq 0 ] && REGISTRY+=("$repo_path|$fs_path|OpenCode skill: $name")
     done
   fi
+
+  # Knowledge (file-level)
+  if [ -d "$REPO_DIR/.agents/knowledge" ]; then
+    for f in "$REPO_DIR/.agents/knowledge"/*; do
+      [ -f "$f" ] || continue
+      local name
+      name="$(basename "$f")"
+      local repo_path=".agents/knowledge/$name"
+      local fs_path="$HOME/.config/opencode/knowledge/$name"
+      local already=0
+      for entry in "${REGISTRY[@]}"; do
+        [[ "${entry%%|*}" == "$repo_path" ]] && already=1 && break
+      done
+      [ "$already" -eq 0 ] && REGISTRY+=("$repo_path|$fs_path|OpenCode knowledge: $name")
+    done
+  fi
 }
 
 prune_stale_dynamic_opencode_symlinks() {
   # Remove stale symlinks for dynamically discovered OpenCode content.
-  # Only touches symlinks under ~/.config/opencode/{commands,agents,skills}
+  # Only touches symlinks under ~/.config/opencode/{commands,agents,skills,knowledge}
   # when they point into this repo and the repo target no longer exists.
   local removed=0
   local entry kind fs_dir repo_dir fs_path link_target repo_path
   local -a dynamic_dirs=(
-    "command|$HOME/.config/opencode/commands|$REPO_DIR/opencode/commands"
-    "agent|$HOME/.config/opencode/agents|$REPO_DIR/opencode/agents"
-    "skill|$HOME/.config/opencode/skills|$REPO_DIR/opencode/skills"
+    "command|$HOME/.config/opencode/commands|$REPO_DIR/.agents/commands"
+    "agent|$HOME/.config/opencode/agents|$REPO_DIR/.agents/agents"
+    "skill|$HOME/.config/opencode/skills|$REPO_DIR/.agents/skills"
+    "knowledge|$HOME/.config/opencode/knowledge|$REPO_DIR/.agents/knowledge"
   )
 
   for entry in "${dynamic_dirs[@]}"; do
