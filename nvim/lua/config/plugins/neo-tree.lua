@@ -39,11 +39,32 @@ return {
     },
   },
   init = function()
+    local function refresh_neo_tree_git()
+      local ok, manager = pcall(require, "neo-tree.sources.manager")
+      if not ok then
+        return
+      end
+
+      manager.refresh("filesystem")
+      manager.refresh("git_status")
+    end
+
     -- Open neo-tree on startup
     vim.api.nvim_create_autocmd("VimEnter", {
       callback = function()
         vim.cmd("Neotree show")
       end,
+    })
+
+    vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter" }, {
+      pattern = "neo-tree *",
+      callback = function()
+        vim.cmd.stopinsert()
+      end,
+    })
+
+    vim.api.nvim_create_autocmd({ "FocusGained", "ShellCmdPost", "VimResume" }, {
+      callback = refresh_neo_tree_git,
     })
   end,
 }
